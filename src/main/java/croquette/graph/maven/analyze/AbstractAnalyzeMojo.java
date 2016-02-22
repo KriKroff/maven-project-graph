@@ -19,7 +19,6 @@ import org.apache.maven.project.MavenProject;
 import org.apache.maven.shared.artifact.filter.StrictPatternExcludesArtifactFilter;
 import org.apache.maven.shared.artifact.filter.StrictPatternIncludesArtifactFilter;
 import org.apache.maven.shared.dependency.analyzer.ProjectDependencyAnalysis;
-import org.apache.maven.shared.dependency.analyzer.ProjectDependencyAnalyzer;
 import org.apache.maven.shared.dependency.analyzer.ProjectDependencyAnalyzerException;
 import org.codehaus.plexus.PlexusConstants;
 import org.codehaus.plexus.PlexusContainer;
@@ -28,6 +27,8 @@ import org.codehaus.plexus.context.ContextException;
 import org.codehaus.plexus.personality.plexus.lifecycle.phase.Contextualizable;
 import org.codehaus.plexus.util.StringUtils;
 import org.codehaus.plexus.util.xml.PrettyPrintXMLWriter;
+
+import croquette.graph.maven.analyze.analyzer.ProjectDependencyAnalyzer;
 
 public abstract class AbstractAnalyzeMojo extends AbstractMojo implements Contextualizable {
   // fields -----------------------------------------------------------------
@@ -53,7 +54,7 @@ public abstract class AbstractAnalyzeMojo extends AbstractMojo implements Contex
    *
    * @since 2.2
    */
-  @Parameter(property = "analyzer", defaultValue = "class")
+  @Parameter(property = "analyzer", defaultValue = "aggregate")
   private String analyzer;
 
   /**
@@ -211,15 +212,15 @@ public abstract class AbstractAnalyzeMojo extends AbstractMojo implements Contex
       return;
     }
 
-    if ("pom".equals(project.getPackaging())) {
-      getLog().info("Skipping pom project");
-      return;
-    }
+    // if ("pom".equals(project.getPackaging())) {
+    // getLog().info("Skipping pom project");
+    // return;
+    // }
 
-    if (outputDirectory == null || !outputDirectory.exists()) {
-      getLog().info("Skipping project with no build directory");
-      return;
-    }
+    // if (outputDirectory == null || !outputDirectory.exists()) {
+    // getLog().info("Skipping project with no build directory");
+    // return;
+    // }
 
     boolean warning = checkDependencies();
 

@@ -21,11 +21,11 @@ package croquette.graph.maven.analyze.analyzer;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Set;
+import java.util.List;
 
+import org.apache.maven.artifact.Artifact;
 import org.apache.maven.shared.dependency.analyzer.ClassFileVisitor;
 import org.apache.maven.shared.dependency.analyzer.asm.DefaultAnnotationVisitor;
 import org.apache.maven.shared.dependency.analyzer.asm.DefaultClassVisitor;
@@ -40,6 +40,12 @@ import org.objectweb.asm.FieldVisitor;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.signature.SignatureVisitor;
 
+import com.google.common.collect.Maps;
+import com.google.common.collect.Maps.EntryTransformer;
+
+import croquette.graph.maven.analyze.ArtifactUtils;
+import croquette.graph.maven.analyze.analysis.InternalClassAnalysis;
+
 /**
  * Computes the set of classes referenced by visited class files, using <a
  * href="DependencyVisitor.html">DependencyVisitor</a>.
@@ -51,11 +57,14 @@ import org.objectweb.asm.signature.SignatureVisitor;
 public class DependencyClassFileVisitor implements ClassFileVisitor {
   // fields -----------------------------------------------------------------
 
-  private HashMap<String, ResultCollector> collectors = new HashMap<String, ResultCollector>();
+  protected HashMap<String, ResultCollector> collectors = new HashMap<String, ResultCollector>();
+
+  protected String artifactIdentifier;
 
   // constructors -----------------------------------------------------------
 
-  public DependencyClassFileVisitor() {
+  public DependencyClassFileVisitor(Artifact artifact) {
+    artifactIdentifier = ArtifactUtils.versionLess(artifact);
   }
 
   // ClassFileVisitor methods -----------------------------------------------
@@ -92,11 +101,13 @@ public class DependencyClassFileVisitor implements ClassFileVisitor {
   /**
    * @return the set of classes referenced by visited class files
    */
-  public Map<String, Set<String>> getDependencies() {
-    Map<String, Set<String>> result = new HashMap<String, Set<String>>();
-    for (Entry<String, ResultCollector> collect : collectors.entrySet()) {
-      result.put(collect.getKey(), collect.getValue().getDependencies());
-    }
-    return result;
+  public List<InternalClassAnalysis> getDependencies() {
+    return new ArrayList<InternalClassAnalysis>(Maps.transformEntries(collectors,
+        new EntryTransformer<String, ResultCollector, InternalClassAnalysis>() {
+          @Override
+          public InternalClassAnalysis transformEntry(String key, ResultCollector value) {
+            return new InternalClassAnalysis(artifactIdentifier, key, value.getDependencies());
+          }
+        }).values());
   }
 }
