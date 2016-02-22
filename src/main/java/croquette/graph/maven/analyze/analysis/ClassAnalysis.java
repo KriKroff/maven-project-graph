@@ -7,12 +7,12 @@ public class ClassAnalysis extends ClassIdentifier {
 
   private Set<ClassIdentifier> dependencies = new HashSet<ClassIdentifier>();
 
-  public ClassAnalysis(String className, Set<ClassAnalysis> dependencies) {
-    super(className, className);
+  public ClassAnalysis(String artifactIdentifier, String className, Set<ClassAnalysis> dependencies) {
+    super(artifactIdentifier, className);
   }
 
-  public ClassAnalysis(String className) {
-    this.className = className;
+  public ClassAnalysis(String artifactIdentifier, String className) {
+	  super(artifactIdentifier,className);
   }
 
   public Set<ClassIdentifier> getDependencies() {
