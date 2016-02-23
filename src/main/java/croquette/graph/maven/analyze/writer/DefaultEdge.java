@@ -1,6 +1,5 @@
 package croquette.graph.maven.analyze.writer;
 
-import java.util.Objects;
 
 public class DefaultEdge implements Edge {
 
@@ -50,7 +49,7 @@ public class DefaultEdge implements Edge {
 
   @Override
   public int hashCode() {
-    return Objects.hash(this.sourceId, this.targetId);
+    return this.sourceId.hashCode() + this.targetId.hashCode();
   }
 
 }

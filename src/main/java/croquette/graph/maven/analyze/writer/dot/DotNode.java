@@ -9,6 +9,6 @@ public class DotNode extends DefaultNode {
   }
 
   public DotNode(String id, String label) {
-    super(DotEscaper.escape(id), label);
+    super(id, label);
   }
 }
