@@ -7,7 +7,7 @@ import com.google.common.base.Joiner;
 public abstract class ArtifactUtils {
 
   private static Joiner getJoiner() {
-    return Joiner.on(';').useForNull("");
+    return Joiner.on(':').useForNull("");
   }
 
   public static String versionLess(Artifact artifact) {

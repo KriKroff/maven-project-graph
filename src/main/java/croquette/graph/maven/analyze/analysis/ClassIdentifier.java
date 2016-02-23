@@ -6,15 +6,15 @@ public class ClassIdentifier {
 
   protected final String className;
 
-  protected final String artifactIdentifier;
+  protected final ArtifactIdentifier artifact;
 
-  public ClassIdentifier(String artifactIdentifier, String className) {
-    this.artifactIdentifier = artifactIdentifier;
+  public ClassIdentifier(ArtifactIdentifier artifact, String className) {
+    this.artifact = artifact;
     this.className = className;
   }
 
-  public String getArtifactIdentifier() {
-    return artifactIdentifier;
+  public ArtifactIdentifier getArtifact() {
+    return artifact;
   }
 
   public String getClassName() {
@@ -24,13 +24,20 @@ public class ClassIdentifier {
   @Override
   public boolean equals(Object obj) {
     if (obj != null && obj instanceof ClassIdentifier) {
-      return Objects.equal(((ClassIdentifier) obj).getClassName(), getClassName());
+      return Objects.equal(artifact, ((ClassIdentifier) obj).getArtifact())
+          && Objects.equal(((ClassIdentifier) obj).getClassName(), getClassName());
     }
     return false;
   }
 
   @Override
+  public int hashCode() {
+    return this.className.hashCode();
+  }
+
+  @Override
   public String toString() {
-    return new StringBuilder(this.artifactIdentifier).append("/").append(this.className).toString();
+    String artifactString = this.artifact != null ? this.artifact.toString() : "";
+    return new StringBuilder(artifactString).append("/").append(this.className).toString();
   }
 }

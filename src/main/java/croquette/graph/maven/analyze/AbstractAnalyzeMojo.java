@@ -1,10 +1,10 @@
 package croquette.graph.maven.analyze;
 
 import java.io.File;
+import java.io.IOException;
 import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
@@ -16,9 +16,7 @@ import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.project.MavenProject;
-import org.apache.maven.shared.artifact.filter.StrictPatternExcludesArtifactFilter;
 import org.apache.maven.shared.artifact.filter.StrictPatternIncludesArtifactFilter;
-import org.apache.maven.shared.dependency.analyzer.ProjectDependencyAnalysis;
 import org.apache.maven.shared.dependency.analyzer.ProjectDependencyAnalyzerException;
 import org.codehaus.plexus.PlexusConstants;
 import org.codehaus.plexus.PlexusContainer;
@@ -28,7 +26,10 @@ import org.codehaus.plexus.personality.plexus.lifecycle.phase.Contextualizable;
 import org.codehaus.plexus.util.StringUtils;
 import org.codehaus.plexus.util.xml.PrettyPrintXMLWriter;
 
+import croquette.graph.maven.analyze.analysis.ProjectDependencyAnalysis;
 import croquette.graph.maven.analyze.analyzer.ProjectDependencyAnalyzer;
+import croquette.graph.maven.analyze.writer.GraphWriter;
+import croquette.graph.maven.analyze.writer.dot.DotGraphWriter;
 
 public abstract class AbstractAnalyzeMojo extends AbstractMojo implements Contextualizable {
   // fields -----------------------------------------------------------------
@@ -58,22 +59,10 @@ public abstract class AbstractAnalyzeMojo extends AbstractMojo implements Contex
   private String analyzer;
 
   /**
-   * Whether to fail the build if a dependency warning is found.
-   */
-  @Parameter(property = "failOnWarning", defaultValue = "false")
-  private boolean failOnWarning;
-
-  /**
    * Output used dependencies.
    */
   @Parameter(property = "verbose", defaultValue = "false")
   private boolean verbose;
-
-  /**
-   * Ignore Runtime/Provided/Test/System scopes for unused dependency analysis.
-   */
-  @Parameter(property = "ignoreNonCompile", defaultValue = "false")
-  private boolean ignoreNonCompile;
 
   /**
    * Output the xml for the missing dependencies (used but not declared).
@@ -92,14 +81,6 @@ public abstract class AbstractAnalyzeMojo extends AbstractMojo implements Contex
   private boolean scriptableOutput;
 
   /**
-   * Flag to use for scriptable output.
-   *
-   * @since 2.0-alpha-5
-   */
-  @Parameter(property = "scriptableFlag", defaultValue = "$$$%%%")
-  private String scriptableFlag;
-
-  /**
    * Flag to use for scriptable output
    *
    * @since 2.0-alpha-5
@@ -116,20 +97,11 @@ public abstract class AbstractAnalyzeMojo extends AbstractMojo implements Contex
   private File outputDirectory;
 
   /**
-   * Force dependencies as used, to override incomplete result caused by bytecode-level analysis. Dependency format is
-   * <code>groupId:artifactId</code>.
-   *
-   * @since 2.6
-   */
-  @Parameter
-  private String[] usedDependencies;
-
-  /**
    * Skip plugin execution completely.
    *
    * @since 2.7
    */
-  @Parameter(property = "mdep.analyze.skip", defaultValue = "false")
+  @Parameter(property = "cro.graph.skip", defaultValue = "false")
   private boolean skip;
 
   /**
@@ -157,48 +129,23 @@ public abstract class AbstractAnalyzeMojo extends AbstractMojo implements Contex
   private String[] ignoredDependencies = new String[0];
 
   /**
-   * List of dependencies that will be ignored if they are used but undeclared.
+   * List of artifacts to be included in the form of {@code groupId:artifactId:type:classifier}.
    *
-   * The filter syntax is:
-   *
-   * <pre>
-   * [groupId]:[artifactId]:[type]:[version]
-   * </pre>
-   *
-   * where each pattern segment is optional and supports full and partial <code>*</code> wildcards. An empty pattern
-   * segment is treated as an implicit wildcard. *
-   * <p>
-   * For example, <code>org.apache.*</code> will match all artifacts whose group id starts with <code>org.apache.</code>
-   * , and <code>:::*-SNAPSHOT</code> will match all snapshot artifacts.
-   * </p>
-   *
-   * @since 2.10
-   * @see StrictPatternIncludesArtifactFilter
+   * @since 1.0.0
    */
-  @Parameter
-  private String[] ignoredUsedUndeclaredDependencies = new String[0];
+  @Parameter(property = "includes", defaultValue = "")
+  protected List<String> includes;
 
   /**
-   * List of dependencies that will be ignored if they are declared but unused.
+   * List of artifacts to be expanded in the form of {@code groupId:artifactId:type:classifier}.
    *
-   * The filter syntax is:
-   *
-   * <pre>
-   * [groupId]:[artifactId]:[type]:[version]
-   * </pre>
-   *
-   * where each pattern segment is optional and supports full and partial <code>*</code> wildcards. An empty pattern
-   * segment is treated as an implicit wildcard. *
-   * <p>
-   * For example, <code>org.apache.*</code> will match all artifacts whose group id starts with <code>org.apache.</code>
-   * , and <code>:::*-SNAPSHOT</code> will match all snapshot artifacts.
-   * </p>
-   *
-   * @since 2.10
-   * @see StrictPatternIncludesArtifactFilter
+   * @since 1.0.0
    */
-  @Parameter
-  private String[] ignoredUnusedDeclaredDependencies = new String[0];
+  @Parameter(property = "expands", defaultValue = "")
+  protected List<String> expands;
+
+  @Parameter(property = "outputType", defaultValue = "dot")
+  protected String outputType;
 
   // Mojo methods -----------------------------------------------------------
 
@@ -222,11 +169,44 @@ public abstract class AbstractAnalyzeMojo extends AbstractMojo implements Contex
     // return;
     // }
 
-    boolean warning = checkDependencies();
-
-    if (warning && failOnWarning) {
-      throw new MojoExecutionException("Dependency problems found");
+    ProjectDependencyAnalysis analysis = null;
+    try {
+      ArtifactFilter includeFilter = createIncludeArtifactFilter();
+      analysis = createProjectDependencyAnalyzer().analyze(includeFilter, this.project);
+    } catch (ProjectDependencyAnalyzerException exception) {
+      throw new MojoExecutionException("Cannot analyze dependencies", exception);
     }
+
+    getLog().info("Writing graphContent");
+
+    ArtifactFilter expandFilter = createExpandArtifactFilter();
+    try {
+      createGraphWriter(this.outputType).writeGraph(this.project, analysis, expandFilter);
+    } catch (IOException exception) {
+      throw new MojoExecutionException("Cannot analyze dependencies", exception);
+    }
+
+  }
+
+  private GraphWriter createGraphWriter(String outputType) {
+    if ("gexf".equals(outputType)) {
+      return null;
+    }
+    return new DotGraphWriter();
+  }
+
+  private ArtifactFilter createIncludeArtifactFilter() {
+    if (includes != null && !includes.isEmpty()) {
+      return new StrictPatternIncludesArtifactFilter(includes);
+    }
+    return new NoopArtifactFilter();
+  }
+
+  private ArtifactFilter createExpandArtifactFilter() {
+    if (expands != null && !expands.isEmpty()) {
+      return new StrictPatternIncludesArtifactFilter(expands);
+    }
+    return new NoopArtifactFilter();
   }
 
   protected ProjectDependencyAnalyzer createProjectDependencyAnalyzer() throws MojoExecutionException {
@@ -254,90 +234,6 @@ public abstract class AbstractAnalyzeMojo extends AbstractMojo implements Contex
   }
 
   // private methods --------------------------------------------------------
-
-  private boolean checkDependencies() throws MojoExecutionException {
-    ProjectDependencyAnalysis analysis;
-    try {
-      analysis = createProjectDependencyAnalyzer().analyze(project);
-
-      if (usedDependencies != null) {
-        analysis = analysis.forceDeclaredDependenciesUsage(usedDependencies);
-      }
-    } catch (ProjectDependencyAnalyzerException exception) {
-      throw new MojoExecutionException("Cannot analyze dependencies", exception);
-    }
-
-    if (ignoreNonCompile) {
-      analysis = analysis.ignoreNonCompile();
-    }
-
-    Set<Artifact> usedDeclared = new HashSet<Artifact>(analysis.getUsedDeclaredArtifacts());
-    Set<Artifact> usedUndeclared = new HashSet<Artifact>(analysis.getUsedUndeclaredArtifacts());
-    Set<Artifact> unusedDeclared = new HashSet<Artifact>(analysis.getUnusedDeclaredArtifacts());
-
-    Set<Artifact> ignoredUsedUndeclared = new HashSet<Artifact>();
-    Set<Artifact> ignoredUnusedDeclared = new HashSet<Artifact>();
-
-    ignoredUsedUndeclared.addAll(filterDependencies(usedUndeclared, ignoredDependencies));
-    ignoredUsedUndeclared.addAll(filterDependencies(usedUndeclared, ignoredUsedUndeclaredDependencies));
-
-    ignoredUnusedDeclared.addAll(filterDependencies(unusedDeclared, ignoredDependencies));
-    ignoredUnusedDeclared.addAll(filterDependencies(unusedDeclared, ignoredUnusedDeclaredDependencies));
-
-    boolean reported = false;
-    boolean warning = false;
-
-    if (verbose && !usedDeclared.isEmpty()) {
-      getLog().info("Used declared dependencies found:");
-
-      logArtifacts(analysis.getUsedDeclaredArtifacts(), false);
-      reported = true;
-    }
-
-    if (!usedUndeclared.isEmpty()) {
-      getLog().warn("Used undeclared dependencies found:");
-
-      logArtifacts(usedUndeclared, true);
-      reported = true;
-      warning = true;
-    }
-
-    if (!unusedDeclared.isEmpty()) {
-      getLog().warn("Unused declared dependencies found:");
-
-      logArtifacts(unusedDeclared, true);
-      reported = true;
-      warning = true;
-    }
-
-    if (verbose && !ignoredUsedUndeclared.isEmpty()) {
-      getLog().info("Ignored used undeclared dependencies:");
-
-      logArtifacts(ignoredUsedUndeclared, false);
-      reported = true;
-    }
-
-    if (verbose && !ignoredUnusedDeclared.isEmpty()) {
-      getLog().info("Ignored unused declared dependencies:");
-
-      logArtifacts(ignoredUnusedDeclared, false);
-      reported = true;
-    }
-
-    if (outputXML) {
-      writeDependencyXML(usedUndeclared);
-    }
-
-    if (scriptableOutput) {
-      writeScriptableOutput(usedUndeclared);
-    }
-
-    if (!reported) {
-      getLog().info("No dependency problems found");
-    }
-
-    return warning;
-  }
 
   private void logArtifacts(Set<Artifact> artifacts, boolean warn) {
     if (artifacts.isEmpty()) {
@@ -396,26 +292,8 @@ public abstract class AbstractAnalyzeMojo extends AbstractMojo implements Contex
     }
   }
 
-  private void writeScriptableOutput(Set<Artifact> artifacts) {
-    if (!artifacts.isEmpty()) {
-      getLog().info("Missing dependencies: ");
-      String pomFile = baseDir.getAbsolutePath() + File.separatorChar + "pom.xml";
-      StringBuilder buf = new StringBuilder();
-
-      for (Artifact artifact : artifacts) {
-        // called because artifact will set the version to -SNAPSHOT only if I do this. MNG-2961
-        artifact.isSnapshot();
-
-        buf.append(scriptableFlag).append(":").append(pomFile).append(":").append(artifact.getDependencyConflictId())
-            .append(":").append(artifact.getClassifier()).append(":").append(artifact.getBaseVersion()).append(":")
-            .append(artifact.getScope()).append("\n");
-      }
-      getLog().info("\n" + buf);
-    }
-  }
-
   private List<Artifact> filterDependencies(Set<Artifact> artifacts, String[] excludes) throws MojoExecutionException {
-    ArtifactFilter filter = new StrictPatternExcludesArtifactFilter(Arrays.asList(excludes));
+    ArtifactFilter filter = new StrictPatternIncludesArtifactFilter(Arrays.asList(excludes));
     List<Artifact> result = new ArrayList<Artifact>();
 
     for (Iterator<Artifact> it = artifacts.iterator(); it.hasNext();) {

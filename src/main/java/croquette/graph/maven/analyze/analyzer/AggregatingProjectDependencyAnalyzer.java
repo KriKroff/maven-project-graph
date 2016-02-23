@@ -20,17 +20,19 @@ package croquette.graph.maven.analyze.analyzer;
  */
 
 import java.util.ArrayList;
-import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Set;
 
-import org.apache.maven.artifact.Artifact;
+import org.apache.maven.artifact.resolver.filter.ArtifactFilter;
 import org.apache.maven.plugin.logging.Log;
 import org.apache.maven.plugin.logging.SystemStreamLog;
 import org.apache.maven.project.MavenProject;
 import org.apache.maven.shared.dependency.analyzer.ProjectDependencyAnalyzerException;
 import org.codehaus.plexus.component.annotations.Component;
 import org.codehaus.plexus.component.annotations.Requirement;
+
+import com.google.common.base.Predicate;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 
 import croquette.graph.maven.analyze.analysis.ProjectDependencyAnalysis;
 
@@ -57,7 +59,8 @@ public class AggregatingProjectDependencyAnalyzer implements ProjectDependencyAn
    * org.apache.maven.shared.dependency.analyzer.ProjectDependencyAnalyzer#analyze(org.apache.maven.project.MavenProject
    * )
    */
-  public ProjectDependencyAnalysis analyze(MavenProject project) throws ProjectDependencyAnalyzerException {
+  public ProjectDependencyAnalysis analyze(final ArtifactFilter includeFilter, MavenProject project)
+      throws ProjectDependencyAnalyzerException {
 
     List<MavenProject> collectedProjects = project.getCollectedProjects();
     log.info("Analyzing " + project);
@@ -67,50 +70,32 @@ public class AggregatingProjectDependencyAnalyzer implements ProjectDependencyAn
     } else {
       log.info(collectedProjects.size() + " to analyze");
     }
-    Set<Artifact> usedDeclaredArtifacts = new LinkedHashSet<Artifact>();
 
-    Set<Artifact> usedUndeclaredArtifacts = new LinkedHashSet<Artifact>();
+    List<MavenProject> filteredProjects = Lists.newArrayList(Iterables.filter(collectedProjects,
+        new Predicate<MavenProject>() {
+          @Override
+          public boolean apply(MavenProject input) {
+            return includeFilter.include(input.getArtifact());
+          }
+        }));
 
-    Set<Artifact> unusedDeclaredArtifacts = new LinkedHashSet<Artifact>();
+    List<ProjectDependencyAnalysis> analyses = new ArrayList<ProjectDependencyAnalysis>();
 
-    for (MavenProject collectedProject : collectedProjects) {
-      System.out.println("Analyzing collected : " + collectedProject);
-      ProjectDependencyAnalysis analysis = dependencyAnalyzer.analyze(collectedProject);
-      usedDeclaredArtifacts.addAll(analysis.getClassDependencies());
-      usedUndeclaredArtifacts.addAll(analysis.getUsedUndeclaredArtifacts());
-      unusedDeclaredArtifacts.addAll(analysis.getUnusedDeclaredArtifacts());
+    for (MavenProject collectedProject : filteredProjects) {
+      analyses.add(dependencyAnalyzer.analyze(includeFilter, collectedProject));
     }
 
-    return new ProjectDependencyAnalysis(usedDeclaredArtifacts, usedUndeclaredArtifacts, unusedDeclaredArtifacts);
+    return mergeProjectDependencyAnalysis(project, analyses);
   }
 
-  /**
-   * This method defines a new way to remove the artifacts by using the conflict id. We don't care about the version
-   * here because there can be only 1 for a given artifact anyway.
-   *
-   * @param start initial set
-   * @param remove set to exclude
-   * @return set with remove excluded
-   */
-  private Set<Artifact> removeAll(Set<Artifact> start, Set<Artifact> remove) {
-    Set<Artifact> results = new LinkedHashSet<Artifact>(start.size());
-
-    for (Artifact artifact : start) {
-      boolean found = false;
-
-      for (Artifact artifact2 : remove) {
-        if (artifact.getDependencyConflictId().equals(artifact2.getDependencyConflictId())) {
-          found = true;
-          break;
-        }
-      }
-
-      if (!found) {
-        results.add(artifact);
-      }
+  private ProjectDependencyAnalysis mergeProjectDependencyAnalysis(MavenProject project,
+      List<ProjectDependencyAnalysis> analyses) {
+    ProjectDependencyAnalysis mergedAnalysis = new ProjectDependencyAnalysis(project.getArtifact());
+    for (ProjectDependencyAnalysis analysis : analyses) {
+      mergedAnalysis.getArtifactsIdentifiers().addAll(analysis.getArtifactsIdentifiers());
+      mergedAnalysis.getClassDependencies().putAll(analysis.getClassDependencies());
     }
-
-    return results;
+    return mergedAnalysis;
   }
 
 }

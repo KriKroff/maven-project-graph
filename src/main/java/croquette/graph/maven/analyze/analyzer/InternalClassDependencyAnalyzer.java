@@ -2,7 +2,7 @@ package croquette.graph.maven.analyze.analyzer;
 
 import java.io.IOException;
 import java.net.URL;
-import java.util.List;
+import java.util.Map;
 
 import org.apache.maven.artifact.Artifact;
 import org.apache.maven.shared.dependency.analyzer.DependencyAnalyzer;
@@ -16,5 +16,5 @@ public interface InternalClassDependencyAnalyzer {
 
   // public methods ---------------------------------------------------------
 
-  List<InternalClassAnalysis> analyze(Artifact artifact, URL url) throws IOException;
+  Map<String, InternalClassAnalysis> analyze(Artifact artifact, URL url) throws IOException;
 }

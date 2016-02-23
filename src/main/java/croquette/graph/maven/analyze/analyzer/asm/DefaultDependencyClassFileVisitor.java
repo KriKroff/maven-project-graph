@@ -1,4 +1,4 @@
-package croquette.graph.maven.analyze.analyzer;
+package croquette.graph.maven.analyze.analyzer.asm;
 
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
@@ -21,18 +21,10 @@ package croquette.graph.maven.analyze.analyzer;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
+import java.util.Map;
 
 import org.apache.maven.artifact.Artifact;
-import org.apache.maven.shared.dependency.analyzer.ClassFileVisitor;
-import org.apache.maven.shared.dependency.analyzer.asm.DefaultAnnotationVisitor;
-import org.apache.maven.shared.dependency.analyzer.asm.DefaultClassVisitor;
-import org.apache.maven.shared.dependency.analyzer.asm.DefaultFieldVisitor;
-import org.apache.maven.shared.dependency.analyzer.asm.DefaultMethodVisitor;
-import org.apache.maven.shared.dependency.analyzer.asm.DefaultSignatureVisitor;
-import org.apache.maven.shared.dependency.analyzer.asm.ResultCollector;
 import org.objectweb.asm.AnnotationVisitor;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassVisitor;
@@ -43,7 +35,7 @@ import org.objectweb.asm.signature.SignatureVisitor;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Maps.EntryTransformer;
 
-import croquette.graph.maven.analyze.ArtifactUtils;
+import croquette.graph.maven.analyze.analysis.ArtifactIdentifier;
 import croquette.graph.maven.analyze.analysis.InternalClassAnalysis;
 
 /**
@@ -54,17 +46,21 @@ import croquette.graph.maven.analyze.analysis.InternalClassAnalysis;
  * @version $Id: DependencyClassFileVisitor.java 1589585 2014-04-24 04:58:35Z olamy $
  * @see #getDependencies()
  */
-public class DependencyClassFileVisitor implements ClassFileVisitor {
+public class DefaultDependencyClassFileVisitor implements DependencyClassFileVisitor {
   // fields -----------------------------------------------------------------
 
   protected HashMap<String, ResultCollector> collectors = new HashMap<String, ResultCollector>();
 
-  protected String artifactIdentifier;
+  protected ArtifactIdentifier artifactIdentifier;
 
   // constructors -----------------------------------------------------------
 
-  public DependencyClassFileVisitor(Artifact artifact) {
-    artifactIdentifier = ArtifactUtils.versionLess(artifact);
+  public DefaultDependencyClassFileVisitor(Artifact artifact) {
+    artifactIdentifier = new ArtifactIdentifier(artifact);
+  }
+
+  public DefaultDependencyClassFileVisitor(ArtifactIdentifier artifactIdentifier) {
+    this.artifactIdentifier = artifactIdentifier;
   }
 
   // ClassFileVisitor methods -----------------------------------------------
@@ -86,7 +82,7 @@ public class DependencyClassFileVisitor implements ClassFileVisitor {
       ClassVisitor classVisitor = new DefaultClassVisitor(signatureVisitor, annotationVisitor, fieldVisitor, mv,
           resultCollector);
 
-      reader.accept(classVisitor, 0);
+      reader.accept(classVisitor, ClassReader.EXPAND_FRAMES);
     } catch (IOException exception) {
       exception.printStackTrace();
     } catch (IndexOutOfBoundsException e) {
@@ -101,13 +97,12 @@ public class DependencyClassFileVisitor implements ClassFileVisitor {
   /**
    * @return the set of classes referenced by visited class files
    */
-  public List<InternalClassAnalysis> getDependencies() {
-    return new ArrayList<InternalClassAnalysis>(Maps.transformEntries(collectors,
-        new EntryTransformer<String, ResultCollector, InternalClassAnalysis>() {
-          @Override
-          public InternalClassAnalysis transformEntry(String key, ResultCollector value) {
-            return new InternalClassAnalysis(artifactIdentifier, key, value.getDependencies());
-          }
-        }).values());
+  public Map<String, InternalClassAnalysis> getDependencies() {
+    return Maps.transformEntries(collectors, new EntryTransformer<String, ResultCollector, InternalClassAnalysis>() {
+      @Override
+      public InternalClassAnalysis transformEntry(String key, ResultCollector value) {
+        return new InternalClassAnalysis(artifactIdentifier, key, value.getDependencies());
+      }
+    });
   }
 }

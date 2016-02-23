@@ -1,5 +1,6 @@
 package croquette.graph.maven.analyze.analyzer;
 
+import org.apache.maven.artifact.resolver.filter.ArtifactFilter;
 import org.apache.maven.project.MavenProject;
 import org.apache.maven.shared.dependency.analyzer.ProjectDependencyAnalyzerException;
 
@@ -12,5 +13,6 @@ public interface ProjectDependencyAnalyzer {
 
   // public methods ---------------------------------------------------------
 
-  ProjectDependencyAnalysis analyze(MavenProject project) throws ProjectDependencyAnalyzerException;
+  ProjectDependencyAnalysis analyze(ArtifactFilter includeFilter, MavenProject project)
+      throws ProjectDependencyAnalyzerException;
 }
