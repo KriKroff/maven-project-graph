@@ -2,7 +2,7 @@ package croquette.graph.maven.analyze.writer.dot;
 
 import java.io.IOException;
 import java.io.Writer;
-import java.util.Set;
+import java.util.Map;
 
 import org.apache.maven.project.MavenProject;
 
@@ -51,15 +51,16 @@ public class DotGraphWriter extends AbstractGraphWriter {
   }
 
   @Override
-  protected void writeGraph(Writer writer, MavenProject project, Set<Node> nodes, Set<Edge> edges) throws IOException {
+  protected void writeGraph(Writer writer, MavenProject project, Map<String, Node> nodes, Map<String, Edge> edges)
+      throws IOException {
 
     writer.write("digraph " + project.getId() + " {\n");
 
-    for (Node node : nodes) {
+    for (Node node : nodes.values()) {
       writeNode(writer, node);
     }
     writer.write("//EDGES\n");
-    for (Edge edge : edges) {
+    for (Edge edge : edges.values()) {
       writeEdge(writer, edge);
     }
 

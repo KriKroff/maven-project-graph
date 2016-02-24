@@ -6,8 +6,8 @@ import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.apache.maven.artifact.resolver.filter.ArtifactFilter;
 import org.apache.maven.project.MavenProject;
@@ -28,8 +28,8 @@ public abstract class AbstractGraphWriter implements GraphWriter {
     Path outputFilePath = outputFile.toPath();
     Files.createDirectories(outputFilePath.getParent());
 
-    Set<Node> nodes = new HashSet<Node>();
-    Set<Edge> edges = new HashSet<Edge>();
+    Map<String, Node> nodes = new HashMap<String, Node>();
+    Map<String, Edge> edges = new HashMap<String, Edge>();
 
     for (ClassAnalysis classAnalysis : projectAnalysis.getClassDependencies().values()) {
       addNodeAndEdges(nodes, edges, expandFilter, classAnalysis);
@@ -40,12 +40,12 @@ public abstract class AbstractGraphWriter implements GraphWriter {
     }
   }
 
-  protected abstract void writeGraph(Writer writer, MavenProject project, Set<Node> nodes, Set<Edge> edges)
-      throws IOException;
+  protected abstract void writeGraph(Writer writer, MavenProject project, Map<String, Node> nodes,
+      Map<String, Edge> edges) throws IOException;
 
   protected abstract String getFileName();
 
-  private void addNodeAndEdges(Set<Node> nodes, Set<Edge> edges, ArtifactFilter expandFilter,
+  private void addNodeAndEdges(Map<String, Node> nodes, Map<String, Edge> edges, ArtifactFilter expandFilter,
       ClassAnalysis classAnalysis) {
     if (expandFilter.include(classAnalysis.getArtifact().getArtifact())) {
       Node defaultNode = createNode(classAnalysis, true);
@@ -74,13 +74,27 @@ public abstract class AbstractGraphWriter implements GraphWriter {
     }
   }
 
-  private void addNode(Set<Node> nodes, Node node) {
-    nodeAdded(node, nodes.add(node));
+  private void addNode(Map<String, Node> nodes, Node node) {
+    Node previousNode = nodes.get(node.getId());
+    if (previousNode == null) {
+      nodes.put(node.getId(), node);
+    } else {
+      node = previousNode;
+    }
+
+    nodeAdded(node, previousNode != null);
   }
 
-  private void addEdge(Set<Edge> edges, Edge edge) {
+  private void addEdge(Map<String, Edge> edges, Edge edge) {
     if (edge != null) {
-      edgeAdded(edge, edges.add(edge));
+      String edgeId = edge.getSourceId() + "|" + edge.getTargetId();
+      Edge previousEdge = edges.get(edgeId);
+      if (previousEdge == null) {
+        edges.put(edgeId, edge);
+      } else {
+        edge = previousEdge;
+      }
+      edgeAdded(edge, previousEdge != null);
     }
   }
 
