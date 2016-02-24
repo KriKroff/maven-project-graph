@@ -47,12 +47,12 @@ public abstract class AbstractGraphWriter implements GraphWriter {
 
   private void addNodeAndEdges(Map<String, Node> nodes, Map<String, Edge> edges, ArtifactFilter expandFilter,
       ClassAnalysis classAnalysis) {
-    if (expandFilter.include(classAnalysis.getArtifact().getArtifact())) {
+    if (expandFilter.include(classAnalysis.getArtifactIdentifier().getArtifact())) {
       Node defaultNode = createNode(classAnalysis, true);
       String nodeId = defaultNode.getId();
       addNode(nodes, defaultNode);
       for (ClassIdentifier dependency : classAnalysis.getDependencies()) {
-        if (expandFilter.include(dependency.getArtifact().getArtifact())) {
+        if (expandFilter.include(dependency.getArtifactIdentifier().getArtifact())) {
           addEdge(edges, createEdge(classAnalysis, nodeId, dependency, true));
         } else {
           addEdge(edges, createEdge(classAnalysis, nodeId, dependency, false));
@@ -65,7 +65,7 @@ public abstract class AbstractGraphWriter implements GraphWriter {
       String nodeId = artifactNode.getId();
 
       for (ClassIdentifier dependency : classAnalysis.getDependencies()) {
-        if (expandFilter.include(dependency.getArtifact().getArtifact())) {
+        if (expandFilter.include(dependency.getArtifactIdentifier().getArtifact())) {
           addEdge(edges, createEdge(classAnalysis, nodeId, dependency, true));
         } else {
           addEdge(edges, createEdge(classAnalysis, nodeId, dependency, false));
@@ -108,9 +108,9 @@ public abstract class AbstractGraphWriter implements GraphWriter {
 
   protected String buildNodeId(ClassIdentifier classAnalysis, boolean withClass) {
     if (withClass) {
-      return classAnalysis.getArtifact().getIdentifier() + "_" + classAnalysis.getClassName();
+      return classAnalysis.getArtifactIdentifier().getIdentifier() + "_" + classAnalysis.getClassName();
     } else {
-      return classAnalysis.getArtifact().getIdentifier();
+      return classAnalysis.getArtifactIdentifier().getIdentifier();
     }
   }
 }

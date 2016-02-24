@@ -94,13 +94,13 @@ public class DefaultProjectDependencyAnalyzer implements ProjectDependencyAnalyz
     Map<String, ClassAnalysis> classAnalysisMap = new HashMap<String, ClassAnalysis>();
 
     for (InternalClassAnalysis internalClassAnalysis : dependencyClasses.values()) {
-      ClassAnalysis classAnalysis = new ClassAnalysis(internalClassAnalysis.getArtifact(),
+      ClassAnalysis classAnalysis = new ClassAnalysis(internalClassAnalysis.getArtifactIdentifier(),
           internalClassAnalysis.getClassName());
       classAnalysisMap.put(classAnalysis.getClassName(), classAnalysis);
       for (String dependencyClassName : internalClassAnalysis.getDependencies()) {
         ArtifactIdentifier artifactIdentifier = null;
         if (dependencyClasses.containsKey(dependencyClassName)) {
-          artifactIdentifier = internalClassAnalysis.getArtifact();
+          artifactIdentifier = internalClassAnalysis.getArtifactIdentifier();
         } else {
           artifactIdentifier = findArtifactForClassName(artifactClassMap, dependencyClassName);
         }

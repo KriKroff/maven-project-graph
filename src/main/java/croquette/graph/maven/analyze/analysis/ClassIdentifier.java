@@ -1,30 +1,36 @@
 package croquette.graph.maven.analyze.analysis;
 
+import org.apache.maven.artifact.Artifact;
+
 import com.google.common.base.Objects;
 
 public class ClassIdentifier {
 
   protected final String className;
 
-  protected final ArtifactIdentifier artifact;
+  protected final ArtifactIdentifier artifactIdentifier;
 
   public ClassIdentifier(ArtifactIdentifier artifact, String className) {
-    this.artifact = artifact;
+    this.artifactIdentifier = artifact;
     this.className = className;
   }
 
-  public ArtifactIdentifier getArtifact() {
-    return artifact;
+  public ArtifactIdentifier getArtifactIdentifier() {
+    return this.artifactIdentifier;
+  }
+
+  public Artifact getArtifact() {
+    return this.artifactIdentifier.getArtifact();
   }
 
   public String getClassName() {
-    return className;
+    return this.className;
   }
 
   @Override
   public boolean equals(Object obj) {
     if (obj != null && obj instanceof ClassIdentifier) {
-      return Objects.equal(artifact, ((ClassIdentifier) obj).getArtifact())
+      return Objects.equal(artifactIdentifier, ((ClassIdentifier) obj).getArtifactIdentifier())
           && Objects.equal(((ClassIdentifier) obj).getClassName(), getClassName());
     }
     return false;
@@ -37,7 +43,7 @@ public class ClassIdentifier {
 
   @Override
   public String toString() {
-    String artifactString = this.artifact != null ? this.artifact.toString() : "";
+    String artifactString = this.artifactIdentifier != null ? this.artifactIdentifier.toString() : "";
     return new StringBuilder(artifactString).append("/").append(this.className).toString();
   }
 }

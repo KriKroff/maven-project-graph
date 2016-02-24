@@ -1,7 +1,5 @@
 package croquette.graph.maven.analyze;
 
-import java.io.File;
-import java.io.IOException;
 import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -28,8 +26,6 @@ import org.codehaus.plexus.util.xml.PrettyPrintXMLWriter;
 
 import croquette.graph.maven.analyze.analysis.ProjectDependencyAnalysis;
 import croquette.graph.maven.analyze.analyzer.ProjectDependencyAnalyzer;
-import croquette.graph.maven.analyze.writer.GraphWriter;
-import croquette.graph.maven.analyze.writer.dot.DotGraphWriter;
 
 public abstract class AbstractAnalyzeMojo extends AbstractMojo implements Contextualizable {
   // fields -----------------------------------------------------------------
@@ -44,7 +40,7 @@ public abstract class AbstractAnalyzeMojo extends AbstractMojo implements Contex
    * The Maven project to analyze.
    */
   @Parameter(defaultValue = "${project}", readonly = true, required = true)
-  private MavenProject project;
+  protected MavenProject project;
 
   /**
    * Specify the project dependency analyzer to use (plexus component role-hint). By default, <a
@@ -56,13 +52,13 @@ public abstract class AbstractAnalyzeMojo extends AbstractMojo implements Contex
    * @since 2.2
    */
   @Parameter(property = "analyzer", defaultValue = "aggregate")
-  private String analyzer;
+  protected String analyzer;
 
   /**
    * Output used dependencies.
    */
   @Parameter(property = "verbose", defaultValue = "false")
-  private boolean verbose;
+  protected boolean verbose;
 
   /**
    * Output the xml for the missing dependencies (used but not declared).
@@ -70,82 +66,15 @@ public abstract class AbstractAnalyzeMojo extends AbstractMojo implements Contex
    * @since 2.0-alpha-5
    */
   @Parameter(property = "outputXML", defaultValue = "false")
-  private boolean outputXML;
-
-  /**
-   * Output scriptable values for the missing dependencies (used but not declared).
-   *
-   * @since 2.0-alpha-5
-   */
-  @Parameter(property = "scriptableOutput", defaultValue = "false")
-  private boolean scriptableOutput;
-
-  /**
-   * Flag to use for scriptable output
-   *
-   * @since 2.0-alpha-5
-   */
-  @Parameter(defaultValue = "${basedir}", readonly = true)
-  private File baseDir;
-
-  /**
-   * Target folder
-   *
-   * @since 2.0-alpha-5
-   */
-  @Parameter(defaultValue = "${project.build.directory}", readonly = true)
-  private File outputDirectory;
+  protected boolean outputXML;
 
   /**
    * Skip plugin execution completely.
    *
    * @since 2.7
    */
-  @Parameter(property = "cro.graph.skip", defaultValue = "false")
-  private boolean skip;
-
-  /**
-   * List of dependencies that will be ignored.
-   *
-   * Any dependency on this list will be excluded from the "declared but unused" and the "used but undeclared" list.
-   *
-   * The filter syntax is:
-   *
-   * <pre>
-   * [groupId]:[artifactId]:[type]:[version]
-   * </pre>
-   *
-   * where each pattern segment is optional and supports full and partial <code>*</code> wildcards. An empty pattern
-   * segment is treated as an implicit wildcard. *
-   * <p>
-   * For example, <code>org.apache.*</code> will match all artifacts whose group id starts with <code>org.apache.</code>
-   * , and <code>:::*-SNAPSHOT</code> will match all snapshot artifacts.
-   * </p>
-   *
-   * @since 2.10
-   * @see StrictPatternIncludesArtifactFilter
-   */
-  @Parameter
-  private String[] ignoredDependencies = new String[0];
-
-  /**
-   * List of artifacts to be included in the form of {@code groupId:artifactId:type:classifier}.
-   *
-   * @since 1.0.0
-   */
-  @Parameter(property = "includes", defaultValue = "")
-  protected List<String> includes;
-
-  /**
-   * List of artifacts to be expanded in the form of {@code groupId:artifactId:type:classifier}.
-   *
-   * @since 1.0.0
-   */
-  @Parameter(property = "expands", defaultValue = "")
-  protected List<String> expands;
-
-  @Parameter(property = "outputType", defaultValue = "dot")
-  protected String outputType;
+  @Parameter(property = "croquette.maven.skip", defaultValue = "false")
+  protected boolean skip;
 
   // Mojo methods -----------------------------------------------------------
 
@@ -159,6 +88,8 @@ public abstract class AbstractAnalyzeMojo extends AbstractMojo implements Contex
       return;
     }
 
+    executeInternal();
+
     // if ("pom".equals(project.getPackaging())) {
     // getLog().info("Skipping pom project");
     // return;
@@ -168,45 +99,17 @@ public abstract class AbstractAnalyzeMojo extends AbstractMojo implements Contex
     // getLog().info("Skipping project with no build directory");
     // return;
     // }
+  }
 
-    ProjectDependencyAnalysis analysis = null;
+  protected abstract void executeInternal() throws MojoExecutionException;
+
+  protected ProjectDependencyAnalysis executeProjectAnalysis(ArtifactFilter includeFilter)
+      throws MojoExecutionException {
     try {
-      ArtifactFilter includeFilter = createIncludeArtifactFilter();
-      analysis = createProjectDependencyAnalyzer().analyze(includeFilter, this.project);
+      return createProjectDependencyAnalyzer().analyze(includeFilter, this.project);
     } catch (ProjectDependencyAnalyzerException exception) {
       throw new MojoExecutionException("Cannot analyze dependencies", exception);
     }
-
-    getLog().info("Writing graphContent");
-
-    ArtifactFilter expandFilter = createExpandArtifactFilter();
-    try {
-      createGraphWriter(this.outputType).writeGraph(this.project, analysis, expandFilter);
-    } catch (IOException exception) {
-      throw new MojoExecutionException("Cannot analyze dependencies", exception);
-    }
-
-  }
-
-  private GraphWriter createGraphWriter(String outputType) {
-    if ("gexf".equals(outputType)) {
-      return null;
-    }
-    return new DotGraphWriter();
-  }
-
-  private ArtifactFilter createIncludeArtifactFilter() {
-    if (includes != null && !includes.isEmpty()) {
-      return new StrictPatternIncludesArtifactFilter(includes);
-    }
-    return new NoopArtifactFilter();
-  }
-
-  private ArtifactFilter createExpandArtifactFilter() {
-    if (expands != null && !expands.isEmpty()) {
-      return new StrictPatternIncludesArtifactFilter(expands);
-    }
-    return new NoopArtifactFilter();
   }
 
   protected ProjectDependencyAnalyzer createProjectDependencyAnalyzer() throws MojoExecutionException {
@@ -306,4 +209,12 @@ public abstract class AbstractAnalyzeMojo extends AbstractMojo implements Contex
 
     return result;
   }
+
+  protected ArtifactFilter createIncludeArtifactFilter(List<String> includes) {
+    if (includes != null && !includes.isEmpty()) {
+      return new StrictPatternIncludesArtifactFilter(includes);
+    }
+    return new NoopArtifactFilter();
+  }
+
 }
