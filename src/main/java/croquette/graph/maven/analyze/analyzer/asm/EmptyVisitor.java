@@ -1,6 +1,7 @@
 package croquette.graph.maven.analyze.analyzer.asm;
 
 import org.objectweb.asm.AnnotationVisitor;
+import org.objectweb.asm.Attribute;
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.FieldVisitor;
 import org.objectweb.asm.Label;
@@ -49,6 +50,11 @@ public class EmptyVisitor extends ClassVisitor {
       @Override
       public AnnotationVisitor visitTypeAnnotation(int typeRef, TypePath typePath, String desc, boolean visible) {
         return av;
+      }
+
+      @Override
+      public void visitAttribute(Attribute attr) {
+        super.visitAttribute(attr);
       }
     };
   }

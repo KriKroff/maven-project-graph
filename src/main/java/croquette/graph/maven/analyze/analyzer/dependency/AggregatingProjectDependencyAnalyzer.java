@@ -1,4 +1,4 @@
-package croquette.graph.maven.analyze.analyzer;
+package croquette.graph.maven.analyze.analyzer.dependency;
 
 /*
  * Licensed to the Apache Software Foundation (ASF) under one

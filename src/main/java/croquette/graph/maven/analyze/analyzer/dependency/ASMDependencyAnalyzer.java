@@ -1,4 +1,4 @@
-package croquette.graph.maven.analyze.analyzer;
+package croquette.graph.maven.analyze.analyzer.dependency;
 
 import java.io.IOException;
 import java.net.URL;

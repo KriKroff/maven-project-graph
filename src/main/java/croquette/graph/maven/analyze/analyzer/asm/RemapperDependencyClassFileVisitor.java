@@ -57,9 +57,9 @@ public class RemapperDependencyClassFileVisitor implements DependencyClassFileVi
     try {
       Set<String> classNames = null;
       try {
-        classNames = Collector.getClassesUsedBy(className);
+        classNames = DependencyCollector.getClassesUsedBy(className);
       } catch (IOException e) {
-        classNames = Collector.getClassesUsedBy(in);
+        classNames = DependencyCollector.getClassesUsedBy(in);
       }
 
       /*

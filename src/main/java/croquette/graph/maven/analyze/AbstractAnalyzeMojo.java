@@ -9,9 +9,7 @@ import java.util.Set;
 
 import org.apache.maven.artifact.Artifact;
 import org.apache.maven.artifact.resolver.filter.ArtifactFilter;
-import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
-import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.project.MavenProject;
 import org.apache.maven.shared.artifact.filter.StrictPatternIncludesArtifactFilter;
@@ -25,7 +23,7 @@ import org.codehaus.plexus.util.StringUtils;
 import org.codehaus.plexus.util.xml.PrettyPrintXMLWriter;
 
 import croquette.graph.maven.analyze.analysis.ProjectDependencyAnalysis;
-import croquette.graph.maven.analyze.analyzer.ProjectDependencyAnalyzer;
+import croquette.graph.maven.analyze.analyzer.dependency.ProjectDependencyAnalyzer;
 
 public abstract class AbstractAnalyzeMojo extends AbstractMojo implements Contextualizable {
   // fields -----------------------------------------------------------------
@@ -55,20 +53,6 @@ public abstract class AbstractAnalyzeMojo extends AbstractMojo implements Contex
   protected String analyzer;
 
   /**
-   * Output used dependencies.
-   */
-  @Parameter(property = "verbose", defaultValue = "false")
-  protected boolean verbose;
-
-  /**
-   * Output the xml for the missing dependencies (used but not declared).
-   *
-   * @since 2.0-alpha-5
-   */
-  @Parameter(property = "outputXML", defaultValue = "false")
-  protected boolean outputXML;
-
-  /**
    * Skip plugin execution completely.
    *
    * @since 2.7
@@ -77,31 +61,6 @@ public abstract class AbstractAnalyzeMojo extends AbstractMojo implements Contex
   protected boolean skip;
 
   // Mojo methods -----------------------------------------------------------
-
-  /*
-   * @see org.apache.maven.plugin.Mojo#execute()
-   */
-  @Override
-  public void execute() throws MojoExecutionException, MojoFailureException {
-    if (isSkip()) {
-      getLog().info("Skipping plugin execution");
-      return;
-    }
-
-    executeInternal();
-
-    // if ("pom".equals(project.getPackaging())) {
-    // getLog().info("Skipping pom project");
-    // return;
-    // }
-
-    // if (outputDirectory == null || !outputDirectory.exists()) {
-    // getLog().info("Skipping project with no build directory");
-    // return;
-    // }
-  }
-
-  protected abstract void executeInternal() throws MojoExecutionException;
 
   protected ProjectDependencyAnalysis executeProjectAnalysis(ArtifactFilter includeFilter)
       throws MojoExecutionException {
@@ -130,10 +89,6 @@ public abstract class AbstractAnalyzeMojo extends AbstractMojo implements Contex
   @Override
   public void contextualize(Context context) throws ContextException {
     this.context = context;
-  }
-
-  protected final boolean isSkip() {
-    return skip;
   }
 
   // private methods --------------------------------------------------------

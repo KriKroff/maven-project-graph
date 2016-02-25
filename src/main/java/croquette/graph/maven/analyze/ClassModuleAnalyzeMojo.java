@@ -16,6 +16,7 @@ import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.plugins.annotations.ResolutionScope;
 import org.apache.maven.shared.dependency.analyzer.ProjectDependencyAnalyzerException;
 
+import com.google.common.base.Predicate;
 import com.google.common.collect.Sets;
 
 import croquette.graph.maven.analyze.analysis.ArtifactIdentifier;
@@ -45,9 +46,6 @@ public class ClassModuleAnalyzeMojo extends AbstractAnalyzeMojo {
   @Parameter(property = "expand", required = true)
   protected String expand;
 
-  @Parameter(property = "depthAnalysis", defaultValue = "true")
-  protected boolean depthAnalysis;
-
   protected GraphWriter createGraphWriter(String outputType) {
     if ("gexf".equals(outputType)) {
       return null;
@@ -73,8 +71,6 @@ public class ClassModuleAnalyzeMojo extends AbstractAnalyzeMojo {
       throw new MojoExecutionException("Cannot analyze dependencies", exception);
     }
 
-    getLog().info("Writing graphContent");
-
     analyseClasses(analysis, expandFilter);
   }
 
@@ -95,7 +91,14 @@ public class ClassModuleAnalyzeMojo extends AbstractAnalyzeMojo {
         }
       }
     }
-    Set<String> unDirectlyUsedClasses = Sets.difference(moduleClasses, usedClasses.keySet());
+    Set<String> unDirectlyUsedClasses = Sets.filter(Sets.difference(moduleClasses, usedClasses.keySet()),
+        new Predicate<String>() {
+          @Override
+          public boolean apply(String input) {
+            return input != null && input.indexOf('$') == -1;
+          }
+        });
+    ;
     boolean found = false;
 
     Set<String> unUsed = new HashSet<String>(unDirectlyUsedClasses);

@@ -1,4 +1,4 @@
-package croquette.graph.maven.analyze.analyzer;
+package croquette.graph.maven.analyze.analyzer.dependency;
 
 import org.apache.maven.artifact.resolver.filter.ArtifactFilter;
 import org.apache.maven.project.MavenProject;

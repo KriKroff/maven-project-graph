@@ -9,13 +9,12 @@ import java.util.TreeSet;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.commons.Remapper;
-import org.objectweb.asm.commons.RemappingClassAdapter;
 
-public class Collector extends Remapper {
+public class DependencyCollector extends Remapper {
 
   private final Set<String> classNames;
 
-  public Collector(final Set<String> classNames) {
+  public DependencyCollector(final Set<String> classNames) {
     this.classNames = classNames;
   }
 
@@ -52,6 +51,14 @@ public class Collector extends Remapper {
     return type;
   }
 
+  @Override
+  public String map(String typeName) {
+    if (typeName != null && typeName.contains("/")) {
+      addType(typeName);
+    }
+    return super.map(typeName);
+  }
+
   public static Set<String> getClassesUsedBy(final String name) throws IOException {
     final ClassReader reader = new ClassReader(name);
     final Set<String> classes = new TreeSet<String>(new Comparator<String>() {
@@ -61,7 +68,7 @@ public class Collector extends Remapper {
         return o1.compareTo(o2);
       }
     });
-    final Remapper remapper = new Collector(classes);
+    final Remapper remapper = new DependencyCollector(classes);
     final ClassVisitor inner = new EmptyVisitor();
     final RemappingClassAdapter visitor = new RemappingClassAdapter(inner, remapper);
     reader.accept(visitor, ClassReader.EXPAND_FRAMES);
@@ -77,7 +84,7 @@ public class Collector extends Remapper {
         return o1.compareTo(o2);
       }
     });
-    final Remapper remapper = new Collector(classes);
+    final Remapper remapper = new DependencyCollector(classes);
     final ClassVisitor inner = new EmptyVisitor();
     final RemappingClassAdapter visitor = new RemappingClassAdapter(inner, remapper);
     reader.accept(visitor, ClassReader.EXPAND_FRAMES);

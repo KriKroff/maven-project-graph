@@ -1,4 +1,4 @@
-package croquette.graph.maven.analyze.analyzer;
+package croquette.graph.maven.analyze.analyzer.dependency;
 
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
@@ -120,8 +120,6 @@ public class DefaultProjectDependencyAnalyzer implements ProjectDependencyAnalyz
     Map<ArtifactIdentifier, Set<String>> artifactClassMap = new LinkedHashMap<ArtifactIdentifier, Set<String>>();
 
     @SuppressWarnings("unchecked")
-    Set<Artifact> projectDependencyArtifacts = project.getArtifacts();
-
     Iterable<Artifact> projectDependencyArtifactsFiltered = Iterables.filter(project.getArtifacts(),
         new Predicate<Artifact>() {
 
