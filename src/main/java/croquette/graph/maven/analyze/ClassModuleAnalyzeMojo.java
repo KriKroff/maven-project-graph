@@ -1,6 +1,7 @@
 package croquette.graph.maven.analyze;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -101,7 +102,7 @@ public class ClassModuleAnalyzeMojo extends AbstractAnalyzeMojo {
     ;
     boolean found = false;
 
-    Set<String> unUsed = new HashSet<String>(unDirectlyUsedClasses);
+    Set<String> unused = new HashSet<String>(unDirectlyUsedClasses);
 
     Set<String> toAnalyseUsed = new HashSet<String>(usedClasses.keySet());
     List<Set<String>> transitiveUse = new ArrayList<Set<String>>();
@@ -114,8 +115,8 @@ public class ClassModuleAnalyzeMojo extends AbstractAnalyzeMojo {
         if (classAnalysis != null) {
           for (ClassIdentifier dependency : classAnalysis.getDependencies()) {
             if (expandFilter.include(dependency.getArtifact())) {
-              if (unUsed.remove(dependency.getClassName())
-                  || unUsed.remove(removeStaticClass(dependency.getClassName()))) {
+              if (unused.remove(dependency.getClassName())
+                  || unused.remove(removeStaticClass(dependency.getClassName()))) {
                 toAnalyseUsed.add(dependency.getClassName());
                 toAnalyseUsed.add(removeStaticClass(dependency.getClassName()));
                 found = true;
@@ -131,14 +132,17 @@ public class ClassModuleAnalyzeMojo extends AbstractAnalyzeMojo {
 
     toAnalyseUsed = null;
 
+    List<String> sortedUnused = new ArrayList<String>(unused);
+    Collections.sort(sortedUnused);
+
     getLog().info("Analysis Finished :");
-    getLog().info("Unused Classes : " + unUsed.size());
-    for (String className : unUsed) {
+    getLog().info("Unused Classes : " + sortedUnused.size());
+    for (String className : sortedUnused) {
       getLog().info("- " + className);
     }
 
     getLog().info("Directly Used Classes : " + usedClasses.size());
-    getLog().info("Used Classes : " + (moduleClasses.size() - unUsed.size()));
+    getLog().info("Used Classes : " + (moduleClasses.size() - unused.size()));
 
   }
 
