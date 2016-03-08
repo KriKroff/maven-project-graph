@@ -80,8 +80,7 @@ public class DefaultProjectDependencyAnalyzer implements ProjectDependencyAnalyz
         Map<String, InternalClassAnalysis> dependencyClasses = buildDependencyClasses(project);
 
         Map<String, ClassAnalysis> classAnalysisMap = buildProjectAnalysis(artifactClassMap, dependencyClasses);
-        Set<ArtifactIdentifier> dependencies = artifactClassMap.keySet();
-        return new ProjectDependencyAnalysis(project.getArtifact(), dependencies, classAnalysisMap);
+        return new ProjectDependencyAnalysis(project.getArtifact(), artifactClassMap, classAnalysisMap);
       } catch (IOException exception) {
         throw new ProjectDependencyAnalyzerException("Cannot analyze dependencies", exception);
       }

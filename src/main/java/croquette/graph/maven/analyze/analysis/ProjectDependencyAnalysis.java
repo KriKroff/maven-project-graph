@@ -1,7 +1,6 @@
 package croquette.graph.maven.analyze.analysis;
 
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
@@ -16,19 +15,19 @@ public class ProjectDependencyAnalysis {
    */
   private final Map<String, ClassAnalysis> classDependencies;
 
-  private final Set<ArtifactIdentifier> artifactsIdentifiers;
+  private final Map<ArtifactIdentifier, Set<String>> artifactsClassMap;
 
   public ProjectDependencyAnalysis(Artifact artifact) {
     this.artifact = artifact;
     this.classDependencies = new HashMap<String, ClassAnalysis>();
-    this.artifactsIdentifiers = new HashSet<ArtifactIdentifier>();
+    this.artifactsClassMap = new HashMap<ArtifactIdentifier, Set<String>>();
 
   }
 
-  public ProjectDependencyAnalysis(Artifact artifact, Set<ArtifactIdentifier> artifactsIdentifiers,
+  public ProjectDependencyAnalysis(Artifact artifact, Map<ArtifactIdentifier, Set<String>> artifactClassMap,
       Map<String, ClassAnalysis> classDependencies) {
     this.artifact = artifact;
-    this.artifactsIdentifiers = artifactsIdentifiers;
+    this.artifactsClassMap = artifactClassMap;
     this.classDependencies = classDependencies;
   }
 
@@ -36,8 +35,8 @@ public class ProjectDependencyAnalysis {
     return classDependencies;
   }
 
-  public Set<ArtifactIdentifier> getArtifactsIdentifiers() {
-    return artifactsIdentifiers;
+  public Map<ArtifactIdentifier, Set<String>> getArtifactsClassMap() {
+    return artifactsClassMap;
   }
 
   public Artifact getArtifact() {

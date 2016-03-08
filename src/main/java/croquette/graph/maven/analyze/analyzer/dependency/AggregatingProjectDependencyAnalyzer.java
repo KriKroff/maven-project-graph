@@ -92,7 +92,7 @@ public class AggregatingProjectDependencyAnalyzer implements ProjectDependencyAn
       List<ProjectDependencyAnalysis> analyses) {
     ProjectDependencyAnalysis mergedAnalysis = new ProjectDependencyAnalysis(project.getArtifact());
     for (ProjectDependencyAnalysis analysis : analyses) {
-      mergedAnalysis.getArtifactsIdentifiers().addAll(analysis.getArtifactsIdentifiers());
+      mergedAnalysis.getArtifactsClassMap().putAll(analysis.getArtifactsClassMap());
       mergedAnalysis.getClassDependencies().putAll(analysis.getClassDependencies());
     }
     return mergedAnalysis;

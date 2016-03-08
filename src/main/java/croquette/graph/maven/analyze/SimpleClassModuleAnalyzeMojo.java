@@ -1,11 +1,14 @@
 package croquette.graph.maven.analyze;
 
+import java.io.File;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 
 import org.apache.maven.artifact.resolver.filter.ArtifactFilter;
@@ -24,18 +27,12 @@ import croquette.graph.maven.analyze.analysis.ArtifactIdentifier;
 import croquette.graph.maven.analyze.analysis.ClassAnalysis;
 import croquette.graph.maven.analyze.analysis.ClassIdentifier;
 import croquette.graph.maven.analyze.analysis.ProjectDependencyAnalysis;
+import croquette.graph.maven.analyze.analyzer.XmlFileVisitorUtils;
+import croquette.graph.maven.analyze.analyzer.asm.SpringXmlFileVisitor;
 
-@Mojo(name = "analyze-usage", aggregator = true, inheritByDefault = false, requiresDependencyResolution = ResolutionScope.TEST, threadSafe = true)
+@Mojo(name = "simple-analyze-usage", aggregator = false, inheritByDefault = false, requiresDependencyResolution = ResolutionScope.TEST, threadSafe = true)
 @Execute(phase = LifecyclePhase.TEST_COMPILE)
-public class ClassModuleAnalyzeMojo extends AbstractAnalyzeMojo {
-
-  /**
-   * List of artifact to include as Callers
-   *
-   * @since 1.0.0
-   */
-  @Parameter(property = "includes", defaultValue = "")
-  protected List<String> includes;
+public class SimpleClassModuleAnalyzeMojo extends AbstractAnalyzeMojo {
 
   /**
    * List of artifact to expand (show classes instead of module)
@@ -53,8 +50,10 @@ public class ClassModuleAnalyzeMojo extends AbstractAnalyzeMojo {
 
     List<String> includePatterns = new ArrayList<String>();
     includePatterns.add(this.expand);
-    includePatterns.addAll(this.includes);
+    includePatterns.add(this.project.getGroupId() + ":" + this.project.getArtifactId());
     ArtifactFilter includeFilter = createIncludeArtifactFilter(includePatterns);
+
+    this.analyzer = "";
 
     ProjectDependencyAnalysis analysis = null;
     try {
@@ -69,8 +68,31 @@ public class ClassModuleAnalyzeMojo extends AbstractAnalyzeMojo {
   private void analyseClasses(ProjectDependencyAnalysis analysis, ArtifactFilter expandFilter) {
 
     Set<String> moduleClasses = new HashSet<String>();
+    SpringXmlFileVisitor springXmlFileVisitor = new SpringXmlFileVisitor();
+    URL url = null;
+    try {
+      url = new File(this.project.getBuild().getOutputDirectory()).toURI().toURL();
+      XmlFileVisitorUtils.accept(url, springXmlFileVisitor);
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+
+    for (Entry<ArtifactIdentifier, Set<String>> entry : analysis.getArtifactsClassMap().entrySet()) {
+      if (expandFilter.include(entry.getKey().getArtifact())) {
+        moduleClasses.addAll(entry.getValue());
+      }
+    }
 
     Map<String, Set<ArtifactIdentifier>> usedClasses = new HashMap<String, Set<ArtifactIdentifier>>();
+
+    for (String className : springXmlFileVisitor.getXmlDependencies()) {
+      ArtifactIdentifier artifactIdentifier = findArtifactForClassName(analysis.getArtifactsClassMap(), className);
+      if (artifactIdentifier != null && expandFilter.include(artifactIdentifier.getArtifact())) {
+        ClassIdentifier dependency = new ClassIdentifier(artifactIdentifier, className);
+        ClassIdentifier classAnalysis = new ClassIdentifier(new ArtifactIdentifier(this.project.getArtifact()), "XML");
+        addUsedClass(usedClasses, classAnalysis, dependency);
+      }
+    }
 
     for (ClassAnalysis classAnalysis : analysis.getClassDependencies().values()) {
       if (expandFilter.include(classAnalysis.getArtifact())) {
@@ -136,7 +158,6 @@ public class ClassModuleAnalyzeMojo extends AbstractAnalyzeMojo {
     for (String className : usedClasses.keySet()) {
       getLog().info("- " + className);
     }
-
     getLog().info("Used Classes : " + (moduleClasses.size() - unused.size()));
 
   }
@@ -153,5 +174,16 @@ public class ClassModuleAnalyzeMojo extends AbstractAnalyzeMojo {
       usedClasses.put(dependency.getClassName(), callers);
     }
     callers.add(caller.getArtifactIdentifier());
+  }
+
+  protected ArtifactIdentifier findArtifactForClassName(Map<ArtifactIdentifier, Set<String>> artifactClassMap,
+      String className) {
+    for (Map.Entry<ArtifactIdentifier, Set<String>> entry : artifactClassMap.entrySet()) {
+      if (entry.getValue().contains(className)) {
+        return entry.getKey();
+      }
+    }
+
+    return null;
   }
 }

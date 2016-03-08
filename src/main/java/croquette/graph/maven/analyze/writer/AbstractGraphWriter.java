@@ -75,9 +75,9 @@ public abstract class AbstractGraphWriter implements GraphWriter {
   }
 
   private void addNode(Map<String, Node> nodes, Node node) {
-    Node previousNode = nodes.get(node.getId());
+    Node previousNode = nodes.get(node.getId().replaceAll("\\$.*", ""));
     if (previousNode == null) {
-      nodes.put(node.getId(), node);
+      nodes.put(node.getId().replaceAll("\\$.*", ""), node);
     } else {
       node = previousNode;
     }
@@ -87,7 +87,7 @@ public abstract class AbstractGraphWriter implements GraphWriter {
 
   private void addEdge(Map<String, Edge> edges, Edge edge) {
     if (edge != null) {
-      String edgeId = edge.getSourceId() + "|" + edge.getTargetId();
+      String edgeId = edge.getSourceId().replaceAll("\\$.*", "") + "|" + edge.getTargetId().replaceAll("\\$.*", "");
       Edge previousEdge = edges.get(edgeId);
       if (previousEdge == null) {
         edges.put(edgeId, edge);
