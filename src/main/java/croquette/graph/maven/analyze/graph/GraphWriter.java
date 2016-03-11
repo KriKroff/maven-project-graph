@@ -1,4 +1,4 @@
-package croquette.graph.maven.analyze.writer;
+package croquette.graph.maven.analyze.graph;
 
 import java.io.IOException;
 

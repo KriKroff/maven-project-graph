@@ -12,20 +12,16 @@ import java.util.jar.JarInputStream;
 
 import org.codehaus.plexus.util.DirectoryScanner;
 
+import croquette.graph.maven.analyze.analyzer.visitor.IXmlFileVisitor;
+
 public class XmlFileVisitorUtils {
-  // constants --------------------------------------------------------------
 
   private static final String[] XML_INCLUDES = {"**/*.xml"};
 
-  // constructors -----------------------------------------------------------
-
   private XmlFileVisitorUtils() {
-    // private constructor for utility class
   }
 
-  // public methods ---------------------------------------------------------
-
-  public static void accept(URL url, XmlFileVisitor visitor) throws IOException {
+  public static void accept(URL url, IXmlFileVisitor visitor) throws IOException {
     if (url.getPath().endsWith(".jar")) {
       acceptJar(url, visitor);
     } else if (url.getProtocol().equalsIgnoreCase("file")) {
@@ -49,7 +45,7 @@ public class XmlFileVisitorUtils {
 
   // private methods --------------------------------------------------------
 
-  private static void acceptJar(URL url, XmlFileVisitor visitor) throws IOException {
+  private static void acceptJar(URL url, IXmlFileVisitor visitor) throws IOException {
     JarInputStream in = new JarInputStream(url.openStream());
     try {
       JarEntry entry = null;
@@ -65,7 +61,7 @@ public class XmlFileVisitorUtils {
     }
   }
 
-  private static void acceptDirectory(File directory, XmlFileVisitor visitor) throws IOException {
+  private static void acceptDirectory(File directory, IXmlFileVisitor visitor) throws IOException {
     if (!directory.isDirectory()) {
       throw new IllegalArgumentException("File is not a directory");
     }
@@ -93,7 +89,7 @@ public class XmlFileVisitorUtils {
     }
   }
 
-  private static void visitXML(String path, InputStream in, XmlFileVisitor visitor) {
+  private static void visitXML(String path, InputStream in, IXmlFileVisitor visitor) {
     if (!path.endsWith(".xml")) {
       throw new IllegalArgumentException("Path is not a xmlFile");
     }

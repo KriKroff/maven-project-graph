@@ -1,4 +1,4 @@
-package croquette.graph.maven.analyze.writer;
+package croquette.graph.maven.analyze.graph;
 
 import java.io.File;
 import java.io.IOException;
@@ -12,9 +12,10 @@ import java.util.Map;
 import org.apache.maven.artifact.resolver.filter.ArtifactFilter;
 import org.apache.maven.project.MavenProject;
 
-import croquette.graph.maven.analyze.analysis.ClassAnalysis;
-import croquette.graph.maven.analyze.analysis.ClassIdentifier;
+import croquette.graph.maven.analyze.analysis.JarEntryAnalysis;
+import croquette.graph.maven.analyze.analysis.JarEntryDescription;
 import croquette.graph.maven.analyze.analysis.ProjectDependencyAnalysis;
+import croquette.graph.maven.analyze.utils.ClassUtil;
 
 public abstract class AbstractGraphWriter implements GraphWriter {
 
@@ -31,7 +32,7 @@ public abstract class AbstractGraphWriter implements GraphWriter {
     Map<String, Node> nodes = new HashMap<String, Node>();
     Map<String, Edge> edges = new HashMap<String, Edge>();
 
-    for (ClassAnalysis classAnalysis : projectAnalysis.getClassDependencies().values()) {
+    for (JarEntryAnalysis classAnalysis : projectAnalysis.getDependencies().values()) {
       addNodeAndEdges(nodes, edges, expandFilter, classAnalysis);
     }
 
@@ -46,12 +47,12 @@ public abstract class AbstractGraphWriter implements GraphWriter {
   protected abstract String getFileName();
 
   private void addNodeAndEdges(Map<String, Node> nodes, Map<String, Edge> edges, ArtifactFilter expandFilter,
-      ClassAnalysis classAnalysis) {
+      JarEntryAnalysis classAnalysis) {
     if (expandFilter.include(classAnalysis.getArtifactIdentifier().getArtifact())) {
       Node defaultNode = createNode(classAnalysis, true);
       String nodeId = defaultNode.getId();
       addNode(nodes, defaultNode);
-      for (ClassIdentifier dependency : classAnalysis.getDependencies()) {
+      for (JarEntryDescription dependency : classAnalysis.getDependencies()) {
         if (expandFilter.include(dependency.getArtifactIdentifier().getArtifact())) {
           addEdge(edges, createEdge(classAnalysis, nodeId, dependency, true));
         } else {
@@ -64,7 +65,7 @@ public abstract class AbstractGraphWriter implements GraphWriter {
       addNode(nodes, artifactNode);
       String nodeId = artifactNode.getId();
 
-      for (ClassIdentifier dependency : classAnalysis.getDependencies()) {
+      for (JarEntryDescription dependency : classAnalysis.getDependencies()) {
         if (expandFilter.include(dependency.getArtifactIdentifier().getArtifact())) {
           addEdge(edges, createEdge(classAnalysis, nodeId, dependency, true));
         } else {
@@ -75,9 +76,9 @@ public abstract class AbstractGraphWriter implements GraphWriter {
   }
 
   private void addNode(Map<String, Node> nodes, Node node) {
-    Node previousNode = nodes.get(node.getId().replaceAll("\\$.*", ""));
+    Node previousNode = nodes.get(ClassUtil.normalizeClassName(node.getId()));
     if (previousNode == null) {
-      nodes.put(node.getId().replaceAll("\\$.*", ""), node);
+      nodes.put(ClassUtil.normalizeClassName(node.getId()), node);
     } else {
       node = previousNode;
     }
@@ -87,7 +88,8 @@ public abstract class AbstractGraphWriter implements GraphWriter {
 
   private void addEdge(Map<String, Edge> edges, Edge edge) {
     if (edge != null) {
-      String edgeId = edge.getSourceId().replaceAll("\\$.*", "") + "|" + edge.getTargetId().replaceAll("\\$.*", "");
+      String edgeId = ClassUtil.normalizeClassName(edge.getSourceId()) + "|"
+          + ClassUtil.normalizeClassName(edge.getTargetId());
       Edge previousEdge = edges.get(edgeId);
       if (previousEdge == null) {
         edges.put(edgeId, edge);
@@ -102,13 +104,14 @@ public abstract class AbstractGraphWriter implements GraphWriter {
 
   protected abstract void edgeAdded(Edge edge, boolean first);
 
-  protected abstract Node createNode(ClassIdentifier classAnalysis, boolean withClass);
+  protected abstract Node createNode(JarEntryDescription classAnalysis, boolean withClass);
 
-  protected abstract Edge createEdge(ClassIdentifier source, String sourceId, ClassIdentifier target, boolean withClass);
+  protected abstract Edge createEdge(JarEntryDescription source, String sourceId, JarEntryDescription target,
+      boolean withClass);
 
-  protected String buildNodeId(ClassIdentifier classAnalysis, boolean withClass) {
+  protected String buildNodeId(JarEntryDescription classAnalysis, boolean withClass) {
     if (withClass) {
-      return classAnalysis.getArtifactIdentifier().getIdentifier() + "_" + classAnalysis.getClassName();
+      return classAnalysis.getArtifactIdentifier().getIdentifier() + "_" + classAnalysis.getId();
     } else {
       return classAnalysis.getArtifactIdentifier().getIdentifier();
     }

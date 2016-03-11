@@ -1,7 +1,5 @@
 package croquette.graph.maven.analyze;
 
-import java.io.File;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -24,11 +22,10 @@ import com.google.common.base.Predicate;
 import com.google.common.collect.Sets;
 
 import croquette.graph.maven.analyze.analysis.ArtifactIdentifier;
-import croquette.graph.maven.analyze.analysis.ClassAnalysis;
-import croquette.graph.maven.analyze.analysis.ClassIdentifier;
+import croquette.graph.maven.analyze.analysis.JarEntryAnalysis;
+import croquette.graph.maven.analyze.analysis.JarEntryDescription;
 import croquette.graph.maven.analyze.analysis.ProjectDependencyAnalysis;
-import croquette.graph.maven.analyze.analyzer.XmlFileVisitorUtils;
-import croquette.graph.maven.analyze.analyzer.asm.SpringXmlFileVisitor;
+import croquette.graph.maven.analyze.utils.ClassUtil;
 
 @Mojo(name = "simple-analyze-usage", aggregator = false, inheritByDefault = false, requiresDependencyResolution = ResolutionScope.TEST, threadSafe = true)
 @Execute(phase = LifecyclePhase.TEST_COMPILE)
@@ -68,14 +65,6 @@ public class SimpleClassModuleAnalyzeMojo extends AbstractAnalyzeMojo {
   private void analyseClasses(ProjectDependencyAnalysis analysis, ArtifactFilter expandFilter) {
 
     Set<String> moduleClasses = new HashSet<String>();
-    SpringXmlFileVisitor springXmlFileVisitor = new SpringXmlFileVisitor();
-    URL url = null;
-    try {
-      url = new File(this.project.getBuild().getOutputDirectory()).toURI().toURL();
-      XmlFileVisitorUtils.accept(url, springXmlFileVisitor);
-    } catch (Exception e) {
-      e.printStackTrace();
-    }
 
     for (Entry<ArtifactIdentifier, Set<String>> entry : analysis.getArtifactsClassMap().entrySet()) {
       if (expandFilter.include(entry.getKey().getArtifact())) {
@@ -85,20 +74,11 @@ public class SimpleClassModuleAnalyzeMojo extends AbstractAnalyzeMojo {
 
     Map<String, Set<ArtifactIdentifier>> usedClasses = new HashMap<String, Set<ArtifactIdentifier>>();
 
-    for (String className : springXmlFileVisitor.getXmlDependencies()) {
-      ArtifactIdentifier artifactIdentifier = findArtifactForClassName(analysis.getArtifactsClassMap(), className);
-      if (artifactIdentifier != null && expandFilter.include(artifactIdentifier.getArtifact())) {
-        ClassIdentifier dependency = new ClassIdentifier(artifactIdentifier, className);
-        ClassIdentifier classAnalysis = new ClassIdentifier(new ArtifactIdentifier(this.project.getArtifact()), "XML");
-        addUsedClass(usedClasses, classAnalysis, dependency);
-      }
-    }
-
-    for (ClassAnalysis classAnalysis : analysis.getClassDependencies().values()) {
+    for (JarEntryAnalysis classAnalysis : analysis.getDependencies().values()) {
       if (expandFilter.include(classAnalysis.getArtifact())) {
-        moduleClasses.add(classAnalysis.getClassName());
+        moduleClasses.add(classAnalysis.getId());
       } else {
-        for (ClassIdentifier dependency : classAnalysis.getDependencies()) {
+        for (JarEntryDescription dependency : classAnalysis.getDependencies()) {
           if (expandFilter.include(dependency.getArtifact())) {
             addUsedClass(usedClasses, classAnalysis, dependency);
           }
@@ -124,14 +104,13 @@ public class SimpleClassModuleAnalyzeMojo extends AbstractAnalyzeMojo {
       Set<String> toAnalyse = new HashSet<String>(toAnalyseUsed);
       toAnalyseUsed = new HashSet<String>(toAnalyse.size());
       for (String className : toAnalyse) {
-        ClassAnalysis classAnalysis = analysis.getClassDependencies().get(className);
+        JarEntryAnalysis classAnalysis = analysis.getDependencies().get(className);
         if (classAnalysis != null) {
-          for (ClassIdentifier dependency : classAnalysis.getDependencies()) {
+          for (JarEntryDescription dependency : classAnalysis.getDependencies()) {
             if (expandFilter.include(dependency.getArtifact())) {
-              if (unused.remove(dependency.getClassName())
-                  || unused.remove(removeStaticClass(dependency.getClassName()))) {
-                toAnalyseUsed.add(dependency.getClassName());
-                toAnalyseUsed.add(removeStaticClass(dependency.getClassName()));
+              if (unused.remove(dependency.getId()) || unused.remove(ClassUtil.normalizeClassName(dependency.getId()))) {
+                toAnalyseUsed.add(dependency.getId());
+                toAnalyseUsed.add(ClassUtil.normalizeClassName(dependency.getId()));
                 found = true;
               }
             }
@@ -162,16 +141,12 @@ public class SimpleClassModuleAnalyzeMojo extends AbstractAnalyzeMojo {
 
   }
 
-  private String removeStaticClass(String className) {
-    return className.replaceAll("\\$.*", "");
-  }
-
-  private void addUsedClass(Map<String, Set<ArtifactIdentifier>> usedClasses, ClassIdentifier caller,
-      ClassIdentifier dependency) {
-    Set<ArtifactIdentifier> callers = usedClasses.get(dependency.getClassName());
+  private void addUsedClass(Map<String, Set<ArtifactIdentifier>> usedClasses, JarEntryDescription caller,
+      JarEntryDescription dependency) {
+    Set<ArtifactIdentifier> callers = usedClasses.get(dependency.getId());
     if (callers == null) {
       callers = new HashSet<ArtifactIdentifier>();
-      usedClasses.put(dependency.getClassName(), callers);
+      usedClasses.put(dependency.getId(), callers);
     }
     callers.add(caller.getArtifactIdentifier());
   }

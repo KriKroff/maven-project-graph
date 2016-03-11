@@ -19,6 +19,8 @@ import org.apache.maven.shared.dependency.analyzer.ClassAnalyzer;
 import org.codehaus.plexus.PlexusConstants;
 import org.codehaus.plexus.PlexusContainer;
 
+import croquette.graph.maven.analyze.utils.ClassUtil;
+
 @Mojo(name = "stats", aggregator = false, inheritByDefault = false, threadSafe = true)
 public class StatisticsAnalyzeMojo extends AbstractMojo {
 
@@ -84,7 +86,7 @@ public class StatisticsAnalyzeMojo extends AbstractMojo {
         while (jarEntries.hasMoreElements()) {
           String entry = jarEntries.nextElement().getName();
           if (entry.endsWith(".class")) {
-            String className = entry.replace('/', '.').replaceAll("\\$.*", "");
+            String className = ClassUtil.normalizeClassName(entry);
             className = className.substring(0, className.length() - ".class".length());
             classes.add(className);
 
@@ -104,7 +106,7 @@ public class StatisticsAnalyzeMojo extends AbstractMojo {
       URL url = file.toURI().toURL();
       Set<String> analyzedClasses = classAnalyzer.analyze(url);
       for (String className : analyzedClasses) {
-        className = className.replaceAll("\\$.*", "");
+        className = ClassUtil.normalizeClassName(className);
         classes.add(className);
         String packageName = className.substring(0, className.lastIndexOf("."));
         addElement(packages, packageName, className);

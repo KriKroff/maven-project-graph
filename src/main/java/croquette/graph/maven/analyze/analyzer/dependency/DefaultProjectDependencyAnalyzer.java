@@ -1,24 +1,5 @@
 package croquette.graph.maven.analyze.analyzer.dependency;
 
-/*
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
- *
- *  http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
- * under the License.
- */
-
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
@@ -45,41 +26,44 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 
 import croquette.graph.maven.analyze.analysis.ArtifactIdentifier;
-import croquette.graph.maven.analyze.analysis.ClassAnalysis;
-import croquette.graph.maven.analyze.analysis.ClassIdentifier;
-import croquette.graph.maven.analyze.analysis.InternalClassAnalysis;
+import croquette.graph.maven.analyze.analysis.JarEntryAnalysis;
+import croquette.graph.maven.analyze.analysis.JarEntryDescription;
 import croquette.graph.maven.analyze.analysis.ProjectDependencyAnalysis;
+import croquette.graph.maven.analyze.analysis.SimpleEntryAnalysis;
+import croquette.graph.maven.analyze.analyzer.dependency.entry.IInternalEntryDependencyAnalyzer;
+import croquette.graph.maven.analyze.utils.ClassUtil;
 
-@Component(role = ProjectDependencyAnalyzer.class)
-public class DefaultProjectDependencyAnalyzer implements ProjectDependencyAnalyzer {
-  // fields -----------------------------------------------------------------
-
-  /**
-   * ClassAnalyzer
-   */
-  @Requirement(role = ClassAnalyzer.class, hint = "class")
-  private ClassAnalyzer classAnalyzer;
-
-  /**
-   * DependencyAnalyzer
-   */
-  @Requirement
-  private InternalClassDependencyAnalyzer dependencyAnalyzer;
-
-  // ProjectDependencyAnalyzer methods --------------------------------------
+@Component(role = IProjectDependencyAnalyzer.class)
+public class DefaultProjectDependencyAnalyzer implements IProjectDependencyAnalyzer {
 
   /*
-   * @see org.apache.maven.shared.dependency.analyzer.ProjectDependencyAnalyzer#
-   * analyze(org.apache.maven.project.MavenProject )
+   * JAR Analyzer collecting all classes for a buildpath/jar
    */
+  @Requirement(role = ClassAnalyzer.class)
+  private ClassAnalyzer jarAnalyzer;
+
+  /**
+   * Class Analyzer collecting dependencies for a single class
+   */
+  @Requirement(role = IInternalEntryDependencyAnalyzer.class, hint = "class")
+  private IInternalEntryDependencyAnalyzer classDependencyAnalyzer;
+
+  /**
+   * XmlAnalyzer collecting dependencies for a single xmlFile
+   */
+  @Requirement(role = IInternalEntryDependencyAnalyzer.class, hint = "xml")
+  private IInternalEntryDependencyAnalyzer xmlDependencyAnalyzer;
+
   public ProjectDependencyAnalysis analyze(ArtifactFilter include, MavenProject project)
       throws ProjectDependencyAnalyzerException {
     if (include.include(project.getArtifact())) {
       try {
         Map<ArtifactIdentifier, Set<String>> artifactClassMap = buildArtifactClassMap(include, project);
-        Map<String, InternalClassAnalysis> dependencyClasses = buildDependencyClasses(project);
+        Map<String, SimpleEntryAnalysis> dependencies = new HashMap<String, SimpleEntryAnalysis>();
+        dependencies.putAll(buildClassesDependencies(project));
+        dependencies.putAll(buildDependencyXml(project));
 
-        Map<String, ClassAnalysis> classAnalysisMap = buildProjectAnalysis(artifactClassMap, dependencyClasses);
+        Map<String, JarEntryAnalysis> classAnalysisMap = buildProjectAnalysis(artifactClassMap, dependencies);
         return new ProjectDependencyAnalysis(project.getArtifact(), artifactClassMap, classAnalysisMap);
       } catch (IOException exception) {
         throw new ProjectDependencyAnalyzerException("Cannot analyze dependencies", exception);
@@ -88,31 +72,30 @@ public class DefaultProjectDependencyAnalyzer implements ProjectDependencyAnalyz
     return null;
   }
 
-  private Map<String, ClassAnalysis> buildProjectAnalysis(Map<ArtifactIdentifier, Set<String>> artifactClassMap,
-      Map<String, InternalClassAnalysis> dependencyClasses) {
-    Map<String, ClassAnalysis> classAnalysisMap = new HashMap<String, ClassAnalysis>();
+  private Map<String, JarEntryAnalysis> buildProjectAnalysis(Map<ArtifactIdentifier, Set<String>> artifactClassMap,
+      Map<String, SimpleEntryAnalysis> dependencyClasses) {
+    Map<String, JarEntryAnalysis> entryAnalysisMap = new HashMap<String, JarEntryAnalysis>();
 
-    for (InternalClassAnalysis internalClassAnalysis : dependencyClasses.values()) {
-      ClassAnalysis classAnalysis = new ClassAnalysis(internalClassAnalysis.getArtifactIdentifier(),
-          internalClassAnalysis.getClassName());
-      classAnalysisMap.put(classAnalysis.getClassName(), classAnalysis);
+    for (SimpleEntryAnalysis internalClassAnalysis : dependencyClasses.values()) {
+      JarEntryAnalysis entryAnalysis = new JarEntryAnalysis(internalClassAnalysis.getArtifactIdentifier(),
+          internalClassAnalysis.getId());
+      entryAnalysisMap.put(entryAnalysis.getId(), entryAnalysis);
       for (String dependencyClassName : internalClassAnalysis.getDependencies()) {
         ArtifactIdentifier artifactIdentifier = null;
         if (dependencyClasses.containsKey(dependencyClassName)) {
           artifactIdentifier = internalClassAnalysis.getArtifactIdentifier();
         } else {
-          artifactIdentifier = findArtifactForClassName(artifactClassMap, dependencyClassName);
+          artifactIdentifier = ClassUtil.findArtifactForClassName(artifactClassMap, dependencyClassName);
         }
         if (artifactIdentifier != null) {
-          ClassIdentifier dependencyClassIdentifier = new ClassIdentifier(artifactIdentifier, dependencyClassName);
-          classAnalysis.getDependencies().add(dependencyClassIdentifier);
+          JarEntryDescription dependencyClassIdentifier = new JarEntryDescription(artifactIdentifier,
+              dependencyClassName);
+          entryAnalysis.getDependencies().add(dependencyClassIdentifier);
         }
       }
     }
-    return classAnalysisMap;
+    return entryAnalysisMap;
   }
-
-  // private methods --------------------------------------------------------
 
   private Map<ArtifactIdentifier, Set<String>> buildArtifactClassMap(final ArtifactFilter filter, MavenProject project)
       throws IOException {
@@ -169,7 +152,7 @@ public class DefaultProjectDependencyAnalyzer implements ProjectDependencyAnalyz
         }
       } else if (file != null && file.isDirectory()) {
         URL url = file.toURI().toURL();
-        Set<String> classes = classAnalyzer.analyze(url);
+        Set<String> classes = jarAnalyzer.analyze(url);
 
         artifactClassMap.put(artifact, classes);
       }
@@ -178,32 +161,19 @@ public class DefaultProjectDependencyAnalyzer implements ProjectDependencyAnalyz
     return artifactClassMap;
   }
 
-  protected Map<String, InternalClassAnalysis> buildDependencyClasses(MavenProject project) throws IOException {
-    Map<String, InternalClassAnalysis> dependencyClasses = new HashMap<String, InternalClassAnalysis>();
+  protected Map<String, SimpleEntryAnalysis> buildClassesDependencies(MavenProject project) throws IOException {
+    String outputDirectory = project.getBuild().getOutputDirectory();
+    URL url = new File(outputDirectory).toURI().toURL();
+    return classDependencyAnalyzer.analyze(project.getArtifact(), url);
+  }
+
+  private Map<? extends String, ? extends SimpleEntryAnalysis> buildDependencyXml(MavenProject project)
+      throws IOException {
 
     String outputDirectory = project.getBuild().getOutputDirectory();
-    dependencyClasses.putAll(buildDependencyClasses(project.getArtifact(), outputDirectory));
+    URL url = new File(outputDirectory).toURI().toURL();
 
-    // String testOutputDirectory = project.getBuild().getTestOutputDirectory();
-    // dependencyClasses.putAll(buildDependencyClasses(project.getArtifact(), testOutputDirectory));
+    return xmlDependencyAnalyzer.analyze(project.getArtifact(), url);
 
-    return dependencyClasses;
-  }
-
-  private Map<String, InternalClassAnalysis> buildDependencyClasses(Artifact artifact, String path) throws IOException {
-    URL url = new File(path).toURI().toURL();
-    Map<String, InternalClassAnalysis> analysisResult = dependencyAnalyzer.analyze(artifact, url);
-    return analysisResult;
-  }
-
-  protected ArtifactIdentifier findArtifactForClassName(Map<ArtifactIdentifier, Set<String>> artifactClassMap,
-      String className) {
-    for (Map.Entry<ArtifactIdentifier, Set<String>> entry : artifactClassMap.entrySet()) {
-      if (entry.getValue().contains(className)) {
-        return entry.getKey();
-      }
-    }
-
-    return null;
   }
 }

@@ -1,6 +1,6 @@
 package croquette.graph.maven.analyze.writer.dot;
 
-import croquette.graph.maven.analyze.writer.DefaultNode;
+import croquette.graph.maven.analyze.graph.DefaultNode;
 
 public class DotNode extends DefaultNode {
 

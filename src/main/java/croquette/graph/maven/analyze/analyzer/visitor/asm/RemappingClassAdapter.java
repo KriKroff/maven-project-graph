@@ -1,10 +1,10 @@
-package croquette.graph.maven.analyze.analyzer.asm;
+package croquette.graph.maven.analyze.analyzer.visitor.asm;
 
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.commons.Remapper;
 
-public class RemappingClassAdapter extends org.objectweb.asm.commons.RemappingClassAdapter {
+class RemappingClassAdapter extends org.objectweb.asm.commons.RemappingClassAdapter {
 
   public RemappingClassAdapter(ClassVisitor cv, Remapper remapper) {
     super(cv, remapper);

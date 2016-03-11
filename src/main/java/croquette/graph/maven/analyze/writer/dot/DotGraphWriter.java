@@ -6,10 +6,10 @@ import java.util.Map;
 
 import org.apache.maven.project.MavenProject;
 
-import croquette.graph.maven.analyze.analysis.ClassIdentifier;
-import croquette.graph.maven.analyze.writer.AbstractGraphWriter;
-import croquette.graph.maven.analyze.writer.Edge;
-import croquette.graph.maven.analyze.writer.Node;
+import croquette.graph.maven.analyze.analysis.JarEntryDescription;
+import croquette.graph.maven.analyze.graph.AbstractGraphWriter;
+import croquette.graph.maven.analyze.graph.Edge;
+import croquette.graph.maven.analyze.graph.Node;
 
 public class DotGraphWriter extends AbstractGraphWriter {
 
@@ -87,12 +87,12 @@ public class DotGraphWriter extends AbstractGraphWriter {
   }
 
   @Override
-  protected Node createNode(ClassIdentifier classAnalysis, boolean withClass) {
+  protected Node createNode(JarEntryDescription classAnalysis, boolean withClass) {
     return new DotNode(buildNodeId(classAnalysis, withClass));
   }
 
   @Override
-  protected Edge createEdge(ClassIdentifier source, String sourceId, ClassIdentifier target, boolean withClass) {
+  protected Edge createEdge(JarEntryDescription source, String sourceId, JarEntryDescription target, boolean withClass) {
     String targetId = buildNodeId(target, withClass);
     if (!sourceId.equals(targetId)) {
       System.out.println(sourceId + " " + targetId);

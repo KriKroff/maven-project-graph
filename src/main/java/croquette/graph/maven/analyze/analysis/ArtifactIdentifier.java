@@ -4,7 +4,7 @@ import java.util.Objects;
 
 import org.apache.maven.artifact.Artifact;
 
-import croquette.graph.maven.analyze.ArtifactUtils;
+import croquette.graph.maven.analyze.utils.ArtifactUtils;
 
 public class ArtifactIdentifier {
 
@@ -36,5 +36,10 @@ public class ArtifactIdentifier {
     return Objects.hash(this.identifier);
 
   };
+
+  @Override
+  public String toString() {
+    return identifier;
+  }
 
 }

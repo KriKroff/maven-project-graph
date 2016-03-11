@@ -1,4 +1,4 @@
-package croquette.graph.maven.analyze.analyzer.asm;
+package croquette.graph.maven.analyze.analyzer.visitor.asm;
 
 import org.objectweb.asm.AnnotationVisitor;
 import org.objectweb.asm.Handle;
@@ -6,16 +6,10 @@ import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.TypePath;
-import org.objectweb.asm.commons.LocalVariablesSorter;
 import org.objectweb.asm.commons.Remapper;
 import org.objectweb.asm.commons.RemappingAnnotationAdapter;
 
-/**
- * A {@link LocalVariablesSorter} for type mapping.
- *
- * @author Eugene Kuleshov
- */
-public class RemappingMethodAdapter extends org.objectweb.asm.commons.RemappingMethodAdapter {
+class RemappingMethodAdapter extends org.objectweb.asm.commons.RemappingMethodAdapter {
 
   protected final Remapper remapper;
 
@@ -102,12 +96,6 @@ public class RemappingMethodAdapter extends org.objectweb.asm.commons.RemappingM
   }
 
   private void doVisitMethodInsn(int opcode, String owner, String name, String desc, boolean itf) {
-    // Calling super.visitMethodInsn requires to call the correct version
-    // depending on this.api (otherwise infinite loops can occur). To
-    // simplify and to make it easier to automatically remove the backward
-    // compatibility code, we inline the code of the overridden method here.
-    // IMPORTANT: THIS ASSUMES THAT visitMethodInsn IS NOT OVERRIDDEN IN
-    // LocalVariableSorter.
     if (mv != null) {
       mv.visitMethodInsn(opcode, remapper.mapType(owner), remapper.mapMethodName(owner, name, desc),
           remapper.mapMethodDesc(desc), itf);

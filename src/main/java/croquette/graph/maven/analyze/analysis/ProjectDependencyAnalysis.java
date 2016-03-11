@@ -13,26 +13,26 @@ public class ProjectDependencyAnalysis {
   /**
    * Dependency map Class -> classes
    */
-  private final Map<String, ClassAnalysis> classDependencies;
+  private final Map<String, JarEntryAnalysis> dependencies;
 
   private final Map<ArtifactIdentifier, Set<String>> artifactsClassMap;
 
   public ProjectDependencyAnalysis(Artifact artifact) {
     this.artifact = artifact;
-    this.classDependencies = new HashMap<String, ClassAnalysis>();
+    this.dependencies = new HashMap<String, JarEntryAnalysis>();
     this.artifactsClassMap = new HashMap<ArtifactIdentifier, Set<String>>();
 
   }
 
   public ProjectDependencyAnalysis(Artifact artifact, Map<ArtifactIdentifier, Set<String>> artifactClassMap,
-      Map<String, ClassAnalysis> classDependencies) {
+      Map<String, JarEntryAnalysis> classDependencies) {
     this.artifact = artifact;
     this.artifactsClassMap = artifactClassMap;
-    this.classDependencies = classDependencies;
+    this.dependencies = classDependencies;
   }
 
-  public Map<String, ClassAnalysis> getClassDependencies() {
-    return classDependencies;
+  public Map<String, JarEntryAnalysis> getDependencies() {
+    return dependencies;
   }
 
   public Map<ArtifactIdentifier, Set<String>> getArtifactsClassMap() {

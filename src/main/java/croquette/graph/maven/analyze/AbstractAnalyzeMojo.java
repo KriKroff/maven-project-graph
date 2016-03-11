@@ -23,13 +23,14 @@ import org.codehaus.plexus.util.StringUtils;
 import org.codehaus.plexus.util.xml.PrettyPrintXMLWriter;
 
 import croquette.graph.maven.analyze.analysis.ProjectDependencyAnalysis;
-import croquette.graph.maven.analyze.analyzer.dependency.ProjectDependencyAnalyzer;
+import croquette.graph.maven.analyze.analyzer.dependency.IProjectDependencyAnalyzer;
+import croquette.graph.maven.analyze.utils.NoopArtifactFilter;
 
 public abstract class AbstractAnalyzeMojo extends AbstractMojo implements Contextualizable {
   // fields -----------------------------------------------------------------
 
   /**
-   * The plexus context to look-up the right {@link ProjectDependencyAnalyzer} implementation depending on the mojo
+   * The plexus context to look-up the right {@link IProjectDependencyAnalyzer} implementation depending on the mojo
    * configuration.
    */
   private Context context;
@@ -71,15 +72,15 @@ public abstract class AbstractAnalyzeMojo extends AbstractMojo implements Contex
     }
   }
 
-  protected ProjectDependencyAnalyzer createProjectDependencyAnalyzer() throws MojoExecutionException {
+  protected IProjectDependencyAnalyzer createProjectDependencyAnalyzer() throws MojoExecutionException {
 
-    final String role = ProjectDependencyAnalyzer.ROLE;
+    final String role = IProjectDependencyAnalyzer.ROLE;
     final String roleHint = analyzer;
 
     try {
       final PlexusContainer container = (PlexusContainer) context.get(PlexusConstants.PLEXUS_KEY);
 
-      return (ProjectDependencyAnalyzer) container.lookup(role, roleHint);
+      return (IProjectDependencyAnalyzer) container.lookup(role, roleHint);
     } catch (Exception exception) {
       throw new MojoExecutionException("Failed to instantiate ProjectDependencyAnalyser with role " + role
           + " / role-hint " + roleHint, exception);

@@ -13,7 +13,7 @@ import org.apache.maven.plugins.annotations.ResolutionScope;
 import org.apache.maven.shared.dependency.analyzer.ProjectDependencyAnalyzerException;
 
 import croquette.graph.maven.analyze.analysis.ProjectDependencyAnalysis;
-import croquette.graph.maven.analyze.writer.GraphWriter;
+import croquette.graph.maven.analyze.graph.GraphWriter;
 import croquette.graph.maven.analyze.writer.dot.DotGraphWriter;
 
 @Mojo(name = "analyze-aggregate", aggregator = true, inheritByDefault = false, requiresDependencyResolution = ResolutionScope.TEST, threadSafe = true)

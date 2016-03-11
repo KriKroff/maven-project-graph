@@ -6,55 +6,39 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 
+import org.apache.maven.artifact.Artifact;
 import org.apache.maven.artifact.resolver.filter.ArtifactFilter;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugins.annotations.Execute;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
-import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.plugins.annotations.ResolutionScope;
 import org.apache.maven.shared.dependency.analyzer.ProjectDependencyAnalyzerException;
 
+import com.google.common.base.Function;
 import com.google.common.base.Predicate;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
+import com.google.common.collect.Sets.SetView;
 
 import croquette.graph.maven.analyze.analysis.ArtifactIdentifier;
-import croquette.graph.maven.analyze.analysis.ClassAnalysis;
-import croquette.graph.maven.analyze.analysis.ClassIdentifier;
+import croquette.graph.maven.analyze.analysis.JarEntryAnalysis;
+import croquette.graph.maven.analyze.analysis.JarEntryDescription;
 import croquette.graph.maven.analyze.analysis.ProjectDependencyAnalysis;
+import croquette.graph.maven.analyze.utils.NoopArtifactFilter;
 
-@Mojo(name = "analyze-usage", aggregator = true, inheritByDefault = false, requiresDependencyResolution = ResolutionScope.TEST, threadSafe = true)
+@Mojo(name = "analyze-usage", aggregator = false, inheritByDefault = false, requiresDependencyResolution = ResolutionScope.TEST, threadSafe = true)
 @Execute(phase = LifecyclePhase.TEST_COMPILE)
 public class ClassModuleAnalyzeMojo extends AbstractAnalyzeMojo {
 
-  /**
-   * List of artifact to include as Callers
-   *
-   * @since 1.0.0
-   */
-  @Parameter(property = "includes", defaultValue = "")
-  protected List<String> includes;
-
-  /**
-   * List of artifact to expand (show classes instead of module)
-   *
-   * @since 1.0.0
-   */
-  @Parameter(property = "expand", required = true)
-  protected String expand;
-
   @Override
   protected void executeInternal() throws MojoExecutionException {
-    List<String> expandPatterns = new ArrayList<String>();
-    expandPatterns.add(this.expand);
-    ArtifactFilter expandFilter = createIncludeArtifactFilter(expandPatterns);
+    ArtifactFilter includeFilter = new NoopArtifactFilter();
 
-    List<String> includePatterns = new ArrayList<String>();
-    includePatterns.add(this.expand);
-    includePatterns.addAll(this.includes);
-    ArtifactFilter includeFilter = createIncludeArtifactFilter(includePatterns);
+    this.analyzer = "";
 
     ProjectDependencyAnalysis analysis = null;
     try {
@@ -63,95 +47,131 @@ public class ClassModuleAnalyzeMojo extends AbstractAnalyzeMojo {
       throw new MojoExecutionException("Cannot analyze dependencies", exception);
     }
 
-    analyseClasses(analysis, expandFilter);
+    analyseClassesPerProjet(analysis);
   }
 
-  private void analyseClasses(ProjectDependencyAnalysis analysis, ArtifactFilter expandFilter) {
+  private void analyseClassesPerProjet(ProjectDependencyAnalysis analysis) {
+    ArtifactIdentifier currentProjectArtifact = new ArtifactIdentifier(this.project.getArtifact());
 
-    Set<String> moduleClasses = new HashSet<String>();
+    Set<ArtifactIdentifier> declaredArtifacts = Sets.newHashSet(Iterables.transform(project.getDependencyArtifacts(),
+        new Function<Artifact, ArtifactIdentifier>() {
 
-    Map<String, Set<ArtifactIdentifier>> usedClasses = new HashMap<String, Set<ArtifactIdentifier>>();
-
-    for (ClassAnalysis classAnalysis : analysis.getClassDependencies().values()) {
-      if (expandFilter.include(classAnalysis.getArtifact())) {
-        moduleClasses.add(classAnalysis.getClassName());
-      } else {
-        for (ClassIdentifier dependency : classAnalysis.getDependencies()) {
-          if (expandFilter.include(dependency.getArtifact())) {
-            addUsedClass(usedClasses, classAnalysis, dependency);
-          }
-        }
-      }
-    }
-    Set<String> unDirectlyUsedClasses = Sets.filter(Sets.difference(moduleClasses, usedClasses.keySet()),
-        new Predicate<String>() {
           @Override
-          public boolean apply(String input) {
-            return input != null && input.indexOf('$') == -1;
+          public ArtifactIdentifier apply(Artifact input) {
+            return new ArtifactIdentifier(input);
           }
-        });
-    ;
-    boolean found = false;
+        }));
+    Set<ArtifactIdentifier> usedArtifacts = new HashSet<ArtifactIdentifier>();
+    Set<ArtifactIdentifier> unusedArtifacts = new HashSet<ArtifactIdentifier>();
 
-    Set<String> unused = new HashSet<String>(unDirectlyUsedClasses);
+    for (Entry<ArtifactIdentifier, Set<String>> entry : analysis.getArtifactsClassMap().entrySet()) {
+      if (!currentProjectArtifact.equals(entry.getKey())) {
+        Set<String> moduleClasses = entry.getValue();
+        ArtifactIdentifier currentArtifact = entry.getKey();
 
-    Set<String> toAnalyseUsed = new HashSet<String>(usedClasses.keySet());
-    List<Set<String>> transitiveUse = new ArrayList<Set<String>>();
-    do {
-      found = false;
-      Set<String> toAnalyse = new HashSet<String>(toAnalyseUsed);
-      toAnalyseUsed = new HashSet<String>(toAnalyse.size());
-      for (String className : toAnalyse) {
-        ClassAnalysis classAnalysis = analysis.getClassDependencies().get(className);
-        if (classAnalysis != null) {
-          for (ClassIdentifier dependency : classAnalysis.getDependencies()) {
-            if (expandFilter.include(dependency.getArtifact())) {
-              if (unused.remove(dependency.getClassName())
-                  || unused.remove(removeStaticClass(dependency.getClassName()))) {
-                toAnalyseUsed.add(dependency.getClassName());
-                toAnalyseUsed.add(removeStaticClass(dependency.getClassName()));
-                found = true;
-              }
+        Map<String, Set<ArtifactIdentifier>> directlyUsedClasses = new HashMap<String, Set<ArtifactIdentifier>>();
+
+        for (JarEntryAnalysis entryAnalysis : analysis.getDependencies().values()) {
+          for (JarEntryDescription dependency : entryAnalysis.getDependencies()) {
+            if (currentArtifact.equals(dependency.getArtifactIdentifier())) {
+              addUsedClass(directlyUsedClasses, entryAnalysis, dependency);
             }
           }
         }
-        if (!toAnalyseUsed.isEmpty()) {
-          transitiveUse.add(toAnalyseUsed);
+        Set<String> unDirectlyUsedClasses = Sets.filter(Sets.difference(moduleClasses, directlyUsedClasses.keySet()),
+            new Predicate<String>() {
+              @Override
+              public boolean apply(String input) {
+                return input != null && input.indexOf('$') == -1;
+              }
+            });
+        ;
+        // boolean found = false;
+
+        Set<String> unused = new HashSet<String>(unDirectlyUsedClasses);
+
+        // Set<String> toAnalyseUsed = new HashSet<String>(directlyUsedClasses.keySet());
+        // List<Set<String>> transitiveUse = new ArrayList<Set<String>>();
+        // do {
+        // found = false;
+        // Set<String> toAnalyse = new HashSet<String>(toAnalyseUsed);
+        // toAnalyseUsed = new HashSet<String>(toAnalyse.size());
+        // for (String className : toAnalyse) {
+        // JarEntryAnalysis classAnalysis = analysis.getDependencies().get(className);
+        // if (classAnalysis != null) {
+        // for (JarEntryDescription dependency : classAnalysis.getDependencies()) {
+        // if (expandFilter.include(dependency.getArtifact())) {
+        // if (unused.remove(dependency.getId())
+        // || unused.remove(ClassUtil.normalizeClassName(dependency.getId()))) {
+        // toAnalyseUsed.add(dependency.getId());
+        // toAnalyseUsed.add(ClassUtil.normalizeClassName(dependency.getId()));
+        // found = true;
+        // }
+        // }
+        // }
+        // }
+        // if (!toAnalyseUsed.isEmpty()) {
+        // transitiveUse.add(toAnalyseUsed);
+        // }
+        // }
+        // } while (found);
+        //
+        // toAnalyseUsed = null;
+
+        List<String> sortedUnused = new ArrayList<String>(unused);
+        Collections.sort(sortedUnused);
+
+        getLog().info("Analysis " + currentArtifact.toString());
+        getLog().info("Classes : " + moduleClasses.size());
+        getLog().info("Directly Used Classes : " + directlyUsedClasses.size());
+        for (String className : directlyUsedClasses.keySet()) {
+          getLog().debug("- " + className);
         }
+        // getLog().info("Used Classes : " + (moduleClasses.size() - unused.size()));
+        if (directlyUsedClasses.isEmpty()) {
+          unusedArtifacts.add(currentArtifact);
+        } else {
+          usedArtifacts.add(currentArtifact);
+        }
+        getLog().info("------------");
       }
-    } while (found);
-
-    toAnalyseUsed = null;
-
-    List<String> sortedUnused = new ArrayList<String>(unused);
-    Collections.sort(sortedUnused);
-
-    getLog().info("Analysis Finished :");
-    getLog().info("Unused Classes : " + sortedUnused.size());
-    for (String className : sortedUnused) {
-      getLog().info("- " + className);
     }
 
-    getLog().info("Directly Used Classes : " + usedClasses.size());
-    for (String className : usedClasses.keySet()) {
-      getLog().info("- " + className);
-    }
+    getLog().info("GLOBAL Analysis :");
 
-    getLog().info("Used Classes : " + (moduleClasses.size() - unused.size()));
+    SetView<ArtifactIdentifier> declaredUnused = Sets.intersection(declaredArtifacts, unusedArtifacts);
+    SetView<ArtifactIdentifier> undeclaredUsed = Sets.difference(usedArtifacts, declaredArtifacts);
+
+    getLog().info("Used undeclared artifacts :");
+    for (ArtifactIdentifier artifact : undeclaredUsed) {
+      getLog().info("- " + artifact.getIdentifier());
+    }
+    getLog().info("");
+    getLog().info("Unused declared artifacts :");
+    for (ArtifactIdentifier artifact : declaredUnused) {
+      getLog().info("- " + artifact.getIdentifier());
+    }
 
   }
 
-  private String removeStaticClass(String className) {
-    return className.replaceAll("\\$.*", "");
-  }
-
-  private void addUsedClass(Map<String, Set<ArtifactIdentifier>> usedClasses, ClassIdentifier caller,
-      ClassIdentifier dependency) {
-    Set<ArtifactIdentifier> callers = usedClasses.get(dependency.getClassName());
+  private void addUsedClass(Map<String, Set<ArtifactIdentifier>> usedClasses, JarEntryDescription caller,
+      JarEntryDescription dependency) {
+    Set<ArtifactIdentifier> callers = usedClasses.get(dependency.getId());
     if (callers == null) {
       callers = new HashSet<ArtifactIdentifier>();
-      usedClasses.put(dependency.getClassName(), callers);
+      usedClasses.put(dependency.getId(), callers);
     }
     callers.add(caller.getArtifactIdentifier());
+  }
+
+  protected ArtifactIdentifier findArtifactForClassName(Map<ArtifactIdentifier, Set<String>> artifactClassMap,
+      String className) {
+    for (Map.Entry<ArtifactIdentifier, Set<String>> entry : artifactClassMap.entrySet()) {
+      if (entry.getValue().contains(className)) {
+        return entry.getKey();
+      }
+    }
+
+    return null;
   }
 }

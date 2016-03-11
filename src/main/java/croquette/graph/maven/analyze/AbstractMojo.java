@@ -12,13 +12,14 @@ import org.codehaus.plexus.context.Context;
 import org.codehaus.plexus.context.ContextException;
 import org.codehaus.plexus.personality.plexus.lifecycle.phase.Contextualizable;
 
-import croquette.graph.maven.analyze.analyzer.dependency.ProjectDependencyAnalyzer;
+import croquette.graph.maven.analyze.analyzer.dependency.IProjectDependencyAnalyzer;
+import croquette.graph.maven.analyze.utils.NoopArtifactFilter;
 
 public abstract class AbstractMojo extends org.apache.maven.plugin.AbstractMojo implements Contextualizable {
   // fields -----------------------------------------------------------------
 
   /**
-   * The plexus context to look-up the right {@link ProjectDependencyAnalyzer} implementation depending on the mojo
+   * The plexus context to look-up the right {@link IProjectDependencyAnalyzer} implementation depending on the mojo
    * configuration.
    */
   protected Context context;

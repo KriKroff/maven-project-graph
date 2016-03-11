@@ -6,10 +6,10 @@ import org.apache.maven.shared.dependency.analyzer.ProjectDependencyAnalyzerExce
 
 import croquette.graph.maven.analyze.analysis.ProjectDependencyAnalysis;
 
-public interface ProjectDependencyAnalyzer {
+public interface IProjectDependencyAnalyzer {
   // fields -----------------------------------------------------------------
 
-  String ROLE = ProjectDependencyAnalyzer.class.getName();
+  String ROLE = IProjectDependencyAnalyzer.class.getName();
 
   // public methods ---------------------------------------------------------
 

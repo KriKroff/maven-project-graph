@@ -1,4 +1,4 @@
-package croquette.graph.maven.analyze.analyzer.asm;
+package croquette.graph.maven.analyze.analyzer.visitor.asm;
 
 import org.objectweb.asm.AnnotationVisitor;
 import org.objectweb.asm.Attribute;

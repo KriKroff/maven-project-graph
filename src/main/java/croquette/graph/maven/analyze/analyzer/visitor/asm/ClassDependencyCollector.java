@@ -1,4 +1,4 @@
-package croquette.graph.maven.analyze.analyzer.asm;
+package croquette.graph.maven.analyze.analyzer.visitor.asm;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -10,11 +10,13 @@ import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.commons.Remapper;
 
-public class DependencyCollector extends Remapper {
+import croquette.graph.maven.analyze.utils.ClassUtil;
+
+public class ClassDependencyCollector extends Remapper {
 
   private final Set<String> classNames;
 
-  public DependencyCollector(final Set<String> classNames) {
+  public ClassDependencyCollector(final Set<String> classNames) {
     this.classNames = classNames;
   }
 
@@ -41,7 +43,7 @@ public class DependencyCollector extends Remapper {
   }
 
   private void addType(final String type) {
-    final String className = type.replace('/', '.').replaceAll("\\$.*", "");
+    final String className = ClassUtil.normalizeClassName(type);
     this.classNames.add(className);
   }
 
@@ -68,7 +70,7 @@ public class DependencyCollector extends Remapper {
         return o1.compareTo(o2);
       }
     });
-    final Remapper remapper = new DependencyCollector(classes);
+    final Remapper remapper = new ClassDependencyCollector(classes);
     final ClassVisitor inner = new EmptyVisitor();
     final RemappingClassAdapter visitor = new RemappingClassAdapter(inner, remapper);
     reader.accept(visitor, ClassReader.EXPAND_FRAMES);
@@ -84,7 +86,7 @@ public class DependencyCollector extends Remapper {
         return o1.compareTo(o2);
       }
     });
-    final Remapper remapper = new DependencyCollector(classes);
+    final Remapper remapper = new ClassDependencyCollector(classes);
     final ClassVisitor inner = new EmptyVisitor();
     final RemappingClassAdapter visitor = new RemappingClassAdapter(inner, remapper);
     reader.accept(visitor, ClassReader.EXPAND_FRAMES);
