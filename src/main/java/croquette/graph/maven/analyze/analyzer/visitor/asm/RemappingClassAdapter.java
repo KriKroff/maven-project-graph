@@ -2,9 +2,10 @@ package croquette.graph.maven.analyze.analyzer.visitor.asm;
 
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.MethodVisitor;
+import org.objectweb.asm.commons.ClassRemapper;
 import org.objectweb.asm.commons.Remapper;
 
-class RemappingClassAdapter extends org.objectweb.asm.commons.RemappingClassAdapter {
+class RemappingClassAdapter extends ClassRemapper {
 
   public RemappingClassAdapter(ClassVisitor cv, Remapper remapper) {
     super(cv, remapper);
@@ -15,8 +16,8 @@ class RemappingClassAdapter extends org.objectweb.asm.commons.RemappingClassAdap
   }
 
   @Override
-  protected MethodVisitor createRemappingMethodAdapter(int access, String newDesc, MethodVisitor mv) {
-    return new RemappingMethodAdapter(access, newDesc, mv, remapper);
+  protected MethodVisitor createMethodRemapper(MethodVisitor methodVisitor) {
+    return new RemappingMethodAdapter(methodVisitor, remapper);
   }
 
 }

@@ -6,45 +6,42 @@ import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.TypePath;
+import org.objectweb.asm.commons.AnnotationRemapper;
+import org.objectweb.asm.commons.MethodRemapper;
 import org.objectweb.asm.commons.Remapper;
-import org.objectweb.asm.commons.RemappingAnnotationAdapter;
 
-class RemappingMethodAdapter extends org.objectweb.asm.commons.RemappingMethodAdapter {
+class RemappingMethodAdapter extends MethodRemapper {
 
-  protected final Remapper remapper;
-
-  public RemappingMethodAdapter(final int access, final String desc, final MethodVisitor mv, final Remapper remapper) {
-    this(Opcodes.ASM5, access, desc, mv, remapper);
+  public RemappingMethodAdapter(MethodVisitor methodVisitor, Remapper remapper) {
+    super(methodVisitor, remapper);
   }
 
-  protected RemappingMethodAdapter(final int api, final int access, final String desc, final MethodVisitor mv,
-      final Remapper remapper) {
-    super(api, access, desc, mv, remapper);
-    this.remapper = remapper;
+  protected RemappingMethodAdapter(int api, MethodVisitor methodVisitor, Remapper remapper) {
+    super(api, methodVisitor, remapper);
   }
 
   @Override
   public AnnotationVisitor visitAnnotationDefault() {
     AnnotationVisitor av = super.visitAnnotationDefault();
-    return av == null ? av : new RemappingAnnotationAdapter(av, remapper);
+    return av == null ? av : new AnnotationRemapper(av, remapper);
   }
 
   @Override
   public AnnotationVisitor visitAnnotation(String desc, boolean visible) {
     AnnotationVisitor av = super.visitAnnotation(remapper.mapDesc(desc), visible);
-    return av == null ? av : new RemappingAnnotationAdapter(av, remapper);
+    return av == null ? av : new AnnotationRemapper(av, remapper);
   }
 
   @Override
   public AnnotationVisitor visitTypeAnnotation(int typeRef, TypePath typePath, String desc, boolean visible) {
     AnnotationVisitor av = super.visitTypeAnnotation(typeRef, typePath, remapper.mapDesc(desc), visible);
-    return av == null ? av : new RemappingAnnotationAdapter(av, remapper);
+    return av == null ? av : new AnnotationRemapper(av, remapper);
   }
 
   @Override
   public AnnotationVisitor visitParameterAnnotation(int parameter, String desc, boolean visible) {
     AnnotationVisitor av = super.visitParameterAnnotation(parameter, remapper.mapDesc(desc), visible);
-    return av == null ? av : new RemappingAnnotationAdapter(av, remapper);
+    return av == null ? av : new AnnotationRemapper(av, remapper);
   }
 
   @Override
@@ -78,7 +75,7 @@ class RemappingMethodAdapter extends org.objectweb.asm.commons.RemappingMethodAd
   @Deprecated
   @Override
   public void visitMethodInsn(final int opcode, final String owner, final String name, final String desc) {
-    if (api >= Opcodes.ASM5) {
+    if (api >= Opcodes.ASM9) {
       super.visitMethodInsn(opcode, owner, name, desc);
       return;
     }
@@ -88,7 +85,7 @@ class RemappingMethodAdapter extends org.objectweb.asm.commons.RemappingMethodAd
   @Override
   public void visitMethodInsn(final int opcode, final String owner, final String name, final String desc,
       final boolean itf) {
-    if (api < Opcodes.ASM5) {
+    if (api < Opcodes.ASM9) {
       super.visitMethodInsn(opcode, owner, name, desc, itf);
       return;
     }
@@ -129,7 +126,7 @@ class RemappingMethodAdapter extends org.objectweb.asm.commons.RemappingMethodAd
   @Override
   public AnnotationVisitor visitInsnAnnotation(int typeRef, TypePath typePath, String desc, boolean visible) {
     AnnotationVisitor av = super.visitInsnAnnotation(typeRef, typePath, remapper.mapDesc(desc), visible);
-    return av == null ? av : new RemappingAnnotationAdapter(av, remapper);
+    return av == null ? av : new AnnotationRemapper(av, remapper);
   }
 
   @Override
@@ -140,7 +137,7 @@ class RemappingMethodAdapter extends org.objectweb.asm.commons.RemappingMethodAd
   @Override
   public AnnotationVisitor visitTryCatchAnnotation(int typeRef, TypePath typePath, String desc, boolean visible) {
     AnnotationVisitor av = super.visitTryCatchAnnotation(typeRef, typePath, remapper.mapDesc(desc), visible);
-    return av == null ? av : new RemappingAnnotationAdapter(av, remapper);
+    return av == null ? av : new AnnotationRemapper(av, remapper);
   }
 
   @Override
@@ -153,6 +150,6 @@ class RemappingMethodAdapter extends org.objectweb.asm.commons.RemappingMethodAd
       int[] index, String desc, boolean visible) {
     AnnotationVisitor av = super.visitLocalVariableAnnotation(typeRef, typePath, start, end, index,
         remapper.mapDesc(desc), visible);
-    return av == null ? av : new RemappingAnnotationAdapter(av, remapper);
+    return av == null ? av : new AnnotationRemapper(av, remapper);
   }
 }

@@ -33,10 +33,10 @@ public class StatisticsAnalyzeMojo extends AbstractMojo {
     try {
       final PlexusContainer container = (PlexusContainer) this.context.get(PlexusConstants.PLEXUS_KEY);
 
-      return (ClassAnalyzer) container.lookup(ClassAnalyzer.ROLE, "class");
+      return (ClassAnalyzer) container.lookup(ClassAnalyzer.class, "class");
     } catch (Exception exception) {
       throw new MojoExecutionException("Failed to instantiate ProjectDependencyAnalyser with role "
-          + ClassAnalyzer.ROLE + " / role-hint class", exception);
+          + ClassAnalyzer.class + " / role-hint class", exception);
     }
   }
 
